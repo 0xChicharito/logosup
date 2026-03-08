@@ -165,8 +165,15 @@ docker_init_config() {
     log_step "Generating node configuration..."
     log_dim "Running logos-blockchain-node init with bootstrap peers"
 
+    # Run init as the host user so it can write to the mounted volume
+    local host_uid
+    host_uid="$(id -u)"
+    local host_gid
+    host_gid="$(id -g)"
+
     # Run init in a temporary container with writable config mount
     $DOCKER_CMD run --rm \
+        --user "${host_uid}:${host_gid}" \
         -v "${LOGOS_NODE_DIR}:/home/logos/config" \
         "${LOGOS_DOCKER_IMAGE}:${LOGOS_NODE_VERSION}" \
         init "${peer_args[@]}" \
@@ -177,6 +184,7 @@ docker_init_config() {
     # Fallback: if the node binary doesn't support --output, try without it
     if [[ ! -f "$config_path" ]]; then
         $DOCKER_CMD run --rm \
+            --user "${host_uid}:${host_gid}" \
             -v "${LOGOS_NODE_DIR}:/home/logos" \
             -w /home/logos \
             "${LOGOS_DOCKER_IMAGE}:${LOGOS_NODE_VERSION}" \
