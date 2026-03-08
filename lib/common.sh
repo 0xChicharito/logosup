@@ -42,7 +42,8 @@ confirm() {
     fi
 
     echo -en "${BOLD}?${RESET} ${prompt}"
-    read -r yn
+    # Read from /dev/tty so prompts work when run via sg, pipe, etc.
+    read -r yn < /dev/tty 2>/dev/null || yn=""
     yn="${yn:-$default}"
 
     case "$yn" in

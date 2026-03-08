@@ -455,30 +455,43 @@ fi
 if [[ "$DOCKER_PERMISSION" == "true" ]]; then
     echo -e "${DIM}────────────────────────────────────────────────────${RESET}"
     echo ""
-    warn "Docker is running but your user doesn't have permission to access it."
-    info "Your user needs to be in the ${BOLD}docker${RESET} group."
-    echo ""
 
-    if confirm "Add your user to the docker group? (requires sudo)"; then
-        run_sudo usermod -aG docker "$USER"
-        success "Added ${USER} to docker group"
-
-        # Try to activate the group in this session via sg
+    # Check if user is already in the docker group (but session doesn't have it active)
+    if getent group docker 2>/dev/null | grep -qw "$USER"; then
+        info "Your user is in the docker group but it's not active in this session."
+        # sg docker will handle it when we launch logos-node install
         if sg docker -c "docker info" &>/dev/null 2>&1; then
-            success "Docker group activated for this session"
+            success "Docker group activated"
             DOCKER_PERMISSION=false
         else
-            echo ""
-            warn "Group change requires a new login session to take effect."
-            info "Please log out and back in, then re-run:"
+            warn "Could not activate docker group."
+            info "Please log out and back in, then run:"
             echo -e "  ${BOLD}${CYAN}logos-node install${RESET}"
-            echo ""
-            info "Or start a new shell now with:"
-            echo -e "  ${BOLD}newgrp docker${RESET}"
             exit 0
         fi
     else
-        die "Docker access is required. Add your user to the docker group and re-run."
+        warn "Docker is running but your user doesn't have permission to access it."
+        info "Your user needs to be in the ${BOLD}docker${RESET} group."
+        echo ""
+
+        if confirm "Add your user to the docker group? (requires sudo)"; then
+            run_sudo usermod -aG docker "$USER"
+            success "Added ${USER} to docker group"
+
+            # Try to activate the group in this session via sg
+            if sg docker -c "docker info" &>/dev/null 2>&1; then
+                success "Docker group activated for this session"
+                DOCKER_PERMISSION=false
+            else
+                echo ""
+                warn "Group change requires a new login session to take effect."
+                info "Please log out and back in, then run:"
+                echo -e "  ${BOLD}${CYAN}logos-node install${RESET}"
+                exit 0
+            fi
+        else
+            die "Docker access is required. Add your user to the docker group and re-run."
+        fi
     fi
 
     echo ""

@@ -116,8 +116,9 @@ services:
     ports:
       - "${LOGOS_API_PORT}:8080"
       - "${LOGOS_UDP_PORT}:3000/udp"
+    working_dir: /app/data
     volumes:
-      - ${LOGOS_NODE_DIR}/user_config.yaml:/app/user_config.yaml:ro
+      - ${LOGOS_NODE_DIR}/user_config.yaml:/app/data/user_config.yaml:ro
       - ${LOGOS_NODE_DIR}/data:/app/data
     environment:
       - LOGOS_BLOCKCHAIN_CIRCUITS=/app/circuits
