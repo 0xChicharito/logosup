@@ -500,15 +500,14 @@ fi
 if ! command -v docker &>/dev/null; then
     error "Docker is still missing"
     READY=false
-elif ! docker info &>/dev/null 2>&1; then
+elif ! docker info &>/dev/null 2>&1 && ! sg docker -c "docker info" &>/dev/null 2>&1; then
     # Check if it's a permission issue vs actually not running
     if docker info 2>&1 | grep -qi "permission denied"; then
         error "Docker permission denied — user not in docker group"
-        READY=false
     else
-        error "Docker is still not running"
-        READY=false
+        error "Docker is not running"
     fi
+    READY=false
 fi
 
 if [[ "$READY" == "false" ]]; then
@@ -614,9 +613,12 @@ echo ""
 
 if confirm "Run logos-node install now?"; then
     echo ""
-    # If docker group is available but not active, launch under sg
-    if ! docker info &>/dev/null 2>&1 && id -nG 2>/dev/null | grep -qw docker; then
-        exec sg docker -c "$CLI_DIR/logos-node install"
+    if docker info &>/dev/null 2>&1; then
+        # Docker works directly
+        exec "$CLI_DIR/logos-node" install
+    elif sg docker -c "docker info" &>/dev/null 2>&1; then
+        # Need sg to access Docker
+        exec sg docker -c "\"$CLI_DIR/logos-node\" install"
     else
         exec "$CLI_DIR/logos-node" install
     fi
