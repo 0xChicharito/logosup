@@ -23,18 +23,43 @@ check_docker() {
         exit 1
     fi
 
-    if ! docker info &>/dev/null; then
-        log_error "Docker daemon is not running."
+    if ! docker info &>/dev/null 2>&1 && ! sudo docker info &>/dev/null 2>&1; then
+        log_warn "Docker daemon is not running."
         case "${LOGOS_OS:-}" in
-            linux)  log_info "Start with: sudo systemctl start docker" ;;
-            macos)  log_info "Start Docker Desktop from your Applications folder" ;;
+            linux)
+                if confirm "Start Docker service now?"; then
+                    log_info "Starting Docker..."
+                    sudo systemctl start docker 2>/dev/null || sudo service docker start 2>/dev/null || true
+                    sleep 3
+                    # Retry with increasing wait
+                    local attempts=0
+                    while [[ $attempts -lt 10 ]]; do
+                        if docker info &>/dev/null 2>&1 || sudo docker info &>/dev/null 2>&1; then
+                            log_success "Docker is running"
+                            break
+                        fi
+                        sleep 2
+                        attempts=$((attempts + 1))
+                    done
+                    if [[ $attempts -ge 10 ]]; then
+                        die "Failed to start Docker. Please start it manually and try again."
+                    fi
+                else
+                    die "Docker must be running. Start it and try again."
+                fi
+                ;;
+            macos)
+                log_info "Please open Docker Desktop from your Applications folder."
+                die "Start Docker Desktop and try again."
+                ;;
         esac
-        exit 1
     fi
 
     # Detect docker compose command
     if docker compose version &>/dev/null 2>&1; then
         DOCKER_COMPOSE="docker compose"
+    elif sudo docker compose version &>/dev/null 2>&1; then
+        DOCKER_COMPOSE="sudo docker compose"
     elif command -v docker-compose &>/dev/null; then
         DOCKER_COMPOSE="docker-compose"
     else

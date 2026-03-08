@@ -532,13 +532,19 @@ echo ""
 echo -e "${DIM}────────────────────────────────────────────────────${RESET}"
 success "${BOLD}Logos Node CLI installed successfully!${RESET}"
 echo ""
-info "Next step: run the installer to set up your node:"
-echo ""
-echo -e "  ${BOLD}${CYAN}logos-node install${RESET}"
-echo ""
-info "This will:"
+info "Next step: set up your node. This will:"
 info "  1. Download the latest Logos Blockchain node"
 info "  2. Build the Docker image with ZK circuits"
 info "  3. Generate your node configuration and wallet keys"
 info "  4. Show you how to get devnet tokens"
+echo ""
+
+if confirm "Run logos-node install now?"; then
+    echo ""
+    exec "$CLI_DIR/logos-node" install
+fi
+
+echo ""
+info "You can run it later with:"
+echo -e "  ${BOLD}${CYAN}logos-node install${RESET}"
 echo ""
