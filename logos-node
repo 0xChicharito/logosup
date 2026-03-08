@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ── Resolve script location ──────────────────────────────────────────
+# Works even when called via symlink (logosnode -> logos-node)
+SCRIPT_SOURCE="${BASH_SOURCE[0]}"
+while [[ -L "$SCRIPT_SOURCE" ]]; do
+    SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_SOURCE")" && pwd -P)"
+    SCRIPT_SOURCE="$(readlink "$SCRIPT_SOURCE")"
+    [[ "$SCRIPT_SOURCE" != /* ]] && SCRIPT_SOURCE="$SCRIPT_DIR/$SCRIPT_SOURCE"
+done
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_SOURCE")" && pwd -P)"
+
+LOGOS_NODE_LIB="$SCRIPT_DIR/lib"
+LOGOS_NODE_DIR="${LOGOS_NODE_DIR:-$HOME/.logos-node}"
+
+export LOGOS_NODE_LIB LOGOS_NODE_DIR
+
+# ── Source core libraries ─────────────────────────────────────────────
+source "$LOGOS_NODE_LIB/common.sh"
+source "$LOGOS_NODE_LIB/config.sh"
+source "$LOGOS_NODE_LIB/releases.sh"
+source "$LOGOS_NODE_LIB/docker.sh"
+
+# ── Load config ───────────────────────────────────────────────────────
+load_config
+
+# ── Help ──────────────────────────────────────────────────────────────
+print_usage() {
+    print_banner
+    echo -e "${BOLD}Usage:${RESET} logos-node <command> [options]"
+    echo ""
+    echo -e "${BOLD}Commands:${RESET}"
+    echo -e "  ${CYAN}install${RESET}    Install and set up the Logos Blockchain node"
+    echo -e "  ${CYAN}start${RESET}      Start the node"
+    echo -e "  ${CYAN}stop${RESET}       Stop the node"
+    echo -e "  ${CYAN}status${RESET}     Show node status and health"
+    echo -e "  ${CYAN}logs${RESET}       View node logs"
+    echo -e "  ${CYAN}update${RESET}     Update the node and/or CLI tool"
+    echo -e "  ${CYAN}keys${RESET}       Show wallet keys"
+    echo -e "  ${CYAN}faucet${RESET}     Open the faucet and display wallet keys"
+    echo -e "  ${CYAN}help${RESET}       Show this help message"
+    echo ""
+    echo -e "${BOLD}Examples:${RESET}"
+    echo "  logos-node install          # First-time setup"
+    echo "  logos-node start            # Start the node"
+    echo "  logos-node status           # Check node health"
+    echo "  logos-node logs -f          # Follow logs"
+    echo "  logos-node update           # Update node + CLI"
+    echo "  logos-node update node      # Update node only"
+    echo ""
+    echo -e "${BOLD}Config:${RESET} $LOGOS_NODE_DIR"
+    echo ""
+}
+
+# ── Command dispatch ──────────────────────────────────────────────────
+COMMAND="${1:-help}"
+shift 2>/dev/null || true
+
+case "$COMMAND" in
+    help|-h|--help)
+        print_usage
+        exit 0
+        ;;
+    version|-v|--version)
+        echo "logos-node CLI"
+        echo "Node version: ${LOGOS_NODE_VERSION:-not installed}"
+        exit 0
+        ;;
+    *)
+        CMD_FILE="$LOGOS_NODE_LIB/cmd_${COMMAND}.sh"
+        if [[ -f "$CMD_FILE" ]]; then
+            source "$CMD_FILE"
+            "cmd_${COMMAND}" "$@"
+        else
+            log_error "Unknown command: $COMMAND"
+            echo ""
+            print_usage
+            exit 1
+        fi
+        ;;
+esac
