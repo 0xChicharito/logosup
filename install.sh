@@ -202,7 +202,7 @@ if ! command -v docker &>/dev/null; then
     warn "Docker is not installed"
     DOCKER_MISSING=true
     MISSING+=("docker")
-elif ! docker info &>/dev/null 2>&1; then
+elif ! docker info &>/dev/null 2>&1 && ! sg docker -c "docker info" &>/dev/null 2>&1 && ! sudo docker info &>/dev/null 2>&1; then
     warn "Docker is installed but not running"
     DOCKER_NOT_RUNNING=true
 else
@@ -213,6 +213,8 @@ fi
 if [[ "$DOCKER_MISSING" == "false" ]] && [[ "$DOCKER_NOT_RUNNING" == "false" ]]; then
     if docker compose version &>/dev/null 2>&1; then
         success "Docker Compose $(docker compose version --short 2>/dev/null)"
+    elif sudo docker compose version &>/dev/null 2>&1; then
+        success "Docker Compose $(sudo docker compose version --short 2>/dev/null)"
     elif command -v docker-compose &>/dev/null; then
         success "docker-compose $(docker-compose --version | awk '{print $NF}')"
     else
