@@ -105,6 +105,7 @@ cmd_install() {
     echo ""
 
     if confirm "Start the node now?"; then
+        source "$LOGOS_NODE_LIB/cmd_start.sh"
         cmd_start
     fi
 }

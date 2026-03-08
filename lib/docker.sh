@@ -171,24 +171,24 @@ docker_init_config() {
     local host_gid
     host_gid="$(id -g)"
 
-    # Run init in a temporary container with writable config mount
+    # Run init in a temporary container, writing config to the mounted volume
     $DOCKER_CMD run --rm \
         --user "${host_uid}:${host_gid}" \
-        -v "${LOGOS_NODE_DIR}:/home/logos/config" \
+        -v "${LOGOS_NODE_DIR}:/home/logos" \
+        -w /home/logos \
         "${LOGOS_DOCKER_IMAGE}:${LOGOS_NODE_VERSION}" \
-        init "${peer_args[@]}" \
-        --output /home/logos/config/user_config.yaml 2>&1 | while IFS= read -r line; do
+        init "${peer_args[@]}" 2>&1 | while IFS= read -r line; do
             echo -e "  ${DIM}${line}${RESET}"
         done
 
-    # Fallback: if the node binary doesn't support --output, try without it
+    # Fallback: try with explicit --output flag
     if [[ ! -f "$config_path" ]]; then
         $DOCKER_CMD run --rm \
             --user "${host_uid}:${host_gid}" \
-            -v "${LOGOS_NODE_DIR}:/home/logos" \
-            -w /home/logos \
+            -v "${LOGOS_NODE_DIR}:/home/logos/config" \
             "${LOGOS_DOCKER_IMAGE}:${LOGOS_NODE_VERSION}" \
-            init "${peer_args[@]}" 2>&1 | while IFS= read -r line; do
+            init "${peer_args[@]}" \
+            --output /home/logos/config/user_config.yaml 2>&1 | while IFS= read -r line; do
                 echo -e "  ${DIM}${line}${RESET}"
             done
     fi
