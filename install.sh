@@ -525,19 +525,11 @@ CLI_DIR="$LOGOS_NODE_DIR/cli"
 
 mkdir -p "$LOGOS_NODE_DIR" && chmod 700 "$LOGOS_NODE_DIR"
 
-if [[ -d "$CLI_DIR/.git" ]]; then
-    info "Updating existing installation..."
-    git -C "$CLI_DIR" pull --quiet 2>/dev/null || {
-        warn "Could not update. Reinstalling..."
-        rm -rf "$CLI_DIR"
-        git clone --depth 1 "https://github.com/${LOGOS_NODE_REPO}.git" "$CLI_DIR"
-    }
-else
-    if [[ -d "$CLI_DIR" ]]; then
-        rm -rf "$CLI_DIR"
-    fi
-    git clone --depth 1 "https://github.com/${LOGOS_NODE_REPO}.git" "$CLI_DIR"
+# Always do a fresh clone to ensure latest code (shallow clones don't update reliably)
+if [[ -d "$CLI_DIR" ]]; then
+    rm -rf "$CLI_DIR"
 fi
+git clone --depth 1 "https://github.com/${LOGOS_NODE_REPO}.git" "$CLI_DIR"
 
 chmod +x "$CLI_DIR/logos-node"
 success "CLI installed to $CLI_DIR"
