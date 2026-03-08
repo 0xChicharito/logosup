@@ -378,11 +378,26 @@ if [[ "$DOCKER_NOT_RUNNING" == "true" ]]; then
             if confirm "Start Docker service now?"; then
                 info "Starting Docker..."
                 sudo systemctl start docker 2>/dev/null || sudo service docker start 2>/dev/null || true
-                sleep 2
+                sleep 3
                 if docker info &>/dev/null 2>&1; then
                     success "Docker is running"
+                elif sudo docker info &>/dev/null 2>&1; then
+                    success "Docker is running (via sudo)"
                 else
-                    die "Failed to start Docker. Please start it manually and re-run."
+                    # Daemon may need more time to start
+                    info "Waiting for Docker daemon to start..."
+                    local attempts=0
+                    while [[ $attempts -lt 10 ]]; do
+                        sleep 2
+                        if docker info &>/dev/null 2>&1 || sudo docker info &>/dev/null 2>&1; then
+                            success "Docker is running"
+                            break
+                        fi
+                        attempts=$((attempts + 1))
+                    done
+                    if [[ $attempts -ge 10 ]]; then
+                        die "Failed to start Docker. Please start it manually and re-run."
+                    fi
                 fi
             else
                 die "Docker must be running. Please start it and re-run."
