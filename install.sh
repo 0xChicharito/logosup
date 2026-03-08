@@ -44,6 +44,18 @@ confirm() {
     esac
 }
 
+# sudo wrapper that works when piped (curl | bash)
+# Ensures sudo can prompt for password via /dev/tty
+run_sudo() {
+    if sudo -n true 2>/dev/null; then
+        # sudo doesn't need a password (cached or NOPASSWD)
+        sudo "$@"
+    else
+        # Force sudo to use the terminal for password prompt
+        sudo "$@" < /dev/tty
+    fi
+}
+
 # ── Banner ────────────────────────────────────────────────────────────
 echo -e "${BOLD}${CYAN}"
 cat << 'BANNER'
@@ -197,24 +209,39 @@ fi
 # ── Docker ────────────────────────────────────────────────────────────
 DOCKER_MISSING=false
 DOCKER_NOT_RUNNING=false
+DOCKER_PERMISSION=false
 
 if ! command -v docker &>/dev/null; then
     warn "Docker is not installed"
     DOCKER_MISSING=true
     MISSING+=("docker")
-elif ! docker info &>/dev/null 2>&1 && ! sg docker -c "docker info" &>/dev/null 2>&1 && ! sudo docker info &>/dev/null 2>&1; then
-    warn "Docker is installed but not running"
-    DOCKER_NOT_RUNNING=true
 else
-    success "Docker $(docker --version | awk '{print $3}' | tr -d ',')"
+    # Check if docker works, and distinguish "not running" from "permission denied"
+    DOCKER_ERR="$(docker info 2>&1)" || true
+    if docker info &>/dev/null 2>&1; then
+        success "Docker $(docker --version | awk '{print $3}' | tr -d ',')"
+    elif echo "$DOCKER_ERR" | grep -qi "permission denied"; then
+        warn "Docker is running but current user lacks permission"
+        DOCKER_PERMISSION=true
+    elif echo "$DOCKER_ERR" | grep -qi "cannot connect\|connection refused\|Is the docker daemon running"; then
+        warn "Docker is installed but not running"
+        DOCKER_NOT_RUNNING=true
+    else
+        # Try sudo as last check (non-interactive, won't hang in pipe)
+        if sudo -n docker info &>/dev/null 2>&1; then
+            success "Docker $(docker --version | awk '{print $3}' | tr -d ',')"
+        else
+            warn "Docker is installed but not running"
+            DOCKER_NOT_RUNNING=true
+        fi
+    fi
 fi
 
 # ── Docker Compose ───────────────────────────────────────────────────
 if [[ "$DOCKER_MISSING" == "false" ]] && [[ "$DOCKER_NOT_RUNNING" == "false" ]]; then
+    # compose version is a client-side command, works without daemon access
     if docker compose version &>/dev/null 2>&1; then
         success "Docker Compose $(docker compose version --short 2>/dev/null)"
-    elif sudo docker compose version &>/dev/null 2>&1; then
-        success "Docker Compose $(sudo docker compose version --short 2>/dev/null)"
     elif command -v docker-compose &>/dev/null; then
         success "docker-compose $(docker-compose --version | awk '{print $NF}')"
     else
@@ -288,13 +315,13 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
                         # Add user to docker group if not root
                         if [[ "$(id -u)" -ne 0 ]]; then
                             info "Adding current user to the docker group..."
-                            sudo usermod -aG docker "$USER" 2>/dev/null || true
+                            run_sudo usermod -aG docker "$USER" 2>/dev/null || true
                         fi
 
                         # Start Docker
                         info "Starting Docker service..."
-                        sudo systemctl enable docker 2>/dev/null || true
-                        sudo systemctl start docker 2>/dev/null || true
+                        run_sudo systemctl enable docker 2>/dev/null || true
+                        run_sudo systemctl start docker 2>/dev/null || true
                         sleep 3
 
                         DOCKER_JUST_INSTALLED=true
@@ -302,7 +329,7 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
                         # Wait for daemon
                         local attempts=0
                         while [[ $attempts -lt 10 ]]; do
-                            if docker info &>/dev/null 2>&1 || sudo docker info &>/dev/null 2>&1; then
+                            if docker info &>/dev/null 2>&1 || run_sudo docker info &>/dev/null 2>&1; then
                                 break
                             fi
                             sleep 2
@@ -313,7 +340,7 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
                             success "Docker is running"
                         elif sg docker -c "docker info" &>/dev/null 2>&1; then
                             success "Docker is running (group activated)"
-                        elif sudo docker info &>/dev/null 2>&1; then
+                        elif run_sudo docker info &>/dev/null 2>&1; then
                             success "Docker is running"
                             warn "Docker requires sudo until you log out and back in."
                         else
@@ -366,8 +393,8 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
     if [[ "$DOCKER_MISSING" == "true" ]] || [[ "${MISSING[*]}" == *"docker-compose"* ]]; then
         if docker compose version &>/dev/null 2>&1; then
             success "Docker Compose $(docker compose version --short 2>/dev/null)"
-        elif sudo docker compose version &>/dev/null 2>&1; then
-            success "Docker Compose $(sudo docker compose version --short 2>/dev/null)"
+        elif run_sudo docker compose version &>/dev/null 2>&1; then
+            success "Docker Compose $(run_sudo docker compose version --short 2>/dev/null)"
         elif command -v docker-compose &>/dev/null; then
             success "docker-compose available"
         else
@@ -389,11 +416,11 @@ if [[ "$DOCKER_NOT_RUNNING" == "true" ]]; then
         linux)
             if confirm "Start Docker service now?"; then
                 info "Starting Docker..."
-                sudo systemctl start docker 2>/dev/null || sudo service docker start 2>/dev/null || true
+                run_sudo systemctl start docker 2>/dev/null || run_sudo service docker start 2>/dev/null || true
                 sleep 3
                 if docker info &>/dev/null 2>&1; then
                     success "Docker is running"
-                elif sudo docker info &>/dev/null 2>&1; then
+                elif run_sudo docker info &>/dev/null 2>&1; then
                     success "Docker is running (via sudo)"
                 else
                     # Daemon may need more time to start
@@ -401,7 +428,7 @@ if [[ "$DOCKER_NOT_RUNNING" == "true" ]]; then
                     local attempts=0
                     while [[ $attempts -lt 10 ]]; do
                         sleep 2
-                        if docker info &>/dev/null 2>&1 || sudo docker info &>/dev/null 2>&1; then
+                        if docker info &>/dev/null 2>&1 || run_sudo docker info &>/dev/null 2>&1; then
                             success "Docker is running"
                             break
                         fi
@@ -424,6 +451,39 @@ if [[ "$DOCKER_NOT_RUNNING" == "true" ]]; then
     echo ""
 fi
 
+# Handle Docker permission issue (running but user can't access socket)
+if [[ "$DOCKER_PERMISSION" == "true" ]]; then
+    echo -e "${DIM}────────────────────────────────────────────────────${RESET}"
+    echo ""
+    warn "Docker is running but your user doesn't have permission to access it."
+    info "Your user needs to be in the ${BOLD}docker${RESET} group."
+    echo ""
+
+    if confirm "Add your user to the docker group? (requires sudo)"; then
+        run_sudo usermod -aG docker "$USER"
+        success "Added ${USER} to docker group"
+
+        # Try to activate the group in this session via sg
+        if sg docker -c "docker info" &>/dev/null 2>&1; then
+            success "Docker group activated for this session"
+            DOCKER_PERMISSION=false
+        else
+            echo ""
+            warn "Group change requires a new login session to take effect."
+            info "Please log out and back in, then re-run:"
+            echo -e "  ${BOLD}${CYAN}logos-node install${RESET}"
+            echo ""
+            info "Or start a new shell now with:"
+            echo -e "  ${BOLD}newgrp docker${RESET}"
+            exit 0
+        fi
+    else
+        die "Docker access is required. Add your user to the docker group and re-run."
+    fi
+
+    echo ""
+fi
+
 # ── Final prerequisite verification ──────────────────────────────────
 READY=true
 
@@ -441,11 +501,10 @@ if ! command -v docker &>/dev/null; then
     error "Docker is still missing"
     READY=false
 elif ! docker info &>/dev/null 2>&1; then
-    # Try activating docker group, then fall back to sudo
-    if sg docker -c "docker info" &>/dev/null 2>&1; then
-        success "Docker is running"
-    elif sudo docker info &>/dev/null 2>&1; then
-        success "Docker is running (via sudo)"
+    # Check if it's a permission issue vs actually not running
+    if docker info 2>&1 | grep -qi "permission denied"; then
+        error "Docker permission denied — user not in docker group"
+        READY=false
     else
         error "Docker is still not running"
         READY=false
@@ -494,13 +553,13 @@ create_symlink() {
 
     if [[ -L "$link_path" ]] || [[ -e "$link_path" ]]; then
         rm -f "$link_path" 2>/dev/null || {
-            sudo rm -f "$link_path"
+            run_sudo rm -f "$link_path"
         }
     fi
 
     ln -sf "$target" "$link_path" 2>/dev/null || {
         info "Need sudo to create symlink in $INSTALL_DIR"
-        sudo ln -sf "$target" "$link_path"
+        run_sudo ln -sf "$target" "$link_path"
     }
 }
 
@@ -514,8 +573,8 @@ else
     # Try with sudo
     if command -v sudo &>/dev/null; then
         info "Need sudo to install to $INSTALL_DIR"
-        if sudo ln -sf "$CLI_DIR/logos-node" "$INSTALL_DIR/logos-node" 2>/dev/null && \
-           sudo ln -sf "$CLI_DIR/logos-node" "$INSTALL_DIR/logosnode" 2>/dev/null; then
+        if run_sudo ln -sf "$CLI_DIR/logos-node" "$INSTALL_DIR/logos-node" 2>/dev/null && \
+           run_sudo ln -sf "$CLI_DIR/logos-node" "$INSTALL_DIR/logosnode" 2>/dev/null; then
             success "Commands available: ${BOLD}logos-node${RESET} and ${BOLD}logosnode${RESET}"
         else
             FALLBACK_TO_PATH=true
