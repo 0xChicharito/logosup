@@ -429,8 +429,8 @@ if ! command -v docker &>/dev/null; then
     error "Docker is still missing"
     READY=false
 elif ! docker info &>/dev/null 2>&1; then
-    # After fresh install, user may not be in docker group yet — sudo is fine
-    if [[ "$DOCKER_JUST_INSTALLED" == "true" ]] && sudo docker info &>/dev/null 2>&1; then
+    # User may not be in docker group yet — sudo fallback is fine
+    if sudo docker info &>/dev/null 2>&1; then
         success "Docker is running (via sudo)"
     else
         error "Docker is still not running"
