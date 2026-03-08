@@ -287,23 +287,33 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
                         if [[ "$(id -u)" -ne 0 ]]; then
                             info "Adding current user to the docker group..."
                             sudo usermod -aG docker "$USER" 2>/dev/null || true
-                            warn "You may need to log out and back in for group changes to take effect."
-                            warn "Or run: ${BOLD}newgrp docker${RESET}"
                         fi
 
                         # Start Docker
                         info "Starting Docker service..."
                         sudo systemctl enable docker 2>/dev/null || true
                         sudo systemctl start docker 2>/dev/null || true
-                        sleep 2
+                        sleep 3
 
                         DOCKER_JUST_INSTALLED=true
 
+                        # Wait for daemon
+                        local attempts=0
+                        while [[ $attempts -lt 10 ]]; do
+                            if docker info &>/dev/null 2>&1 || sudo docker info &>/dev/null 2>&1; then
+                                break
+                            fi
+                            sleep 2
+                            attempts=$((attempts + 1))
+                        done
+
                         if docker info &>/dev/null 2>&1; then
                             success "Docker is running"
+                        elif sg docker -c "docker info" &>/dev/null 2>&1; then
+                            success "Docker is running (group activated)"
                         elif sudo docker info &>/dev/null 2>&1; then
-                            success "Docker is running (via sudo — will use sudo until you re-login)"
-                            warn "After installation, log out and back in so docker works without sudo."
+                            success "Docker is running"
+                            warn "Docker requires sudo until you log out and back in."
                         else
                             warn "Docker installed but daemon may still be starting."
                             info "Try: ${BOLD}sudo docker info${RESET} to verify."
@@ -429,8 +439,10 @@ if ! command -v docker &>/dev/null; then
     error "Docker is still missing"
     READY=false
 elif ! docker info &>/dev/null 2>&1; then
-    # User may not be in docker group yet — sudo fallback is fine
-    if sudo docker info &>/dev/null 2>&1; then
+    # Try activating docker group, then fall back to sudo
+    if sg docker -c "docker info" &>/dev/null 2>&1; then
+        success "Docker is running"
+    elif sudo docker info &>/dev/null 2>&1; then
         success "Docker is running (via sudo)"
     else
         error "Docker is still not running"
@@ -541,7 +553,12 @@ echo ""
 
 if confirm "Run logos-node install now?"; then
     echo ""
-    exec "$CLI_DIR/logos-node" install
+    # If docker group is available but not active, launch under sg
+    if ! docker info &>/dev/null 2>&1 && id -nG 2>/dev/null | grep -qw docker; then
+        exec sg docker -c "$CLI_DIR/logos-node install"
+    else
+        exec "$CLI_DIR/logos-node" install
+    fi
 fi
 
 echo ""

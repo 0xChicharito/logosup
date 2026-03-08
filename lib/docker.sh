@@ -2,6 +2,7 @@
 # DESCRIPTION: Docker and docker-compose helpers
 
 DOCKER_COMPOSE=""
+DOCKER_CMD="docker"
 
 # Check Docker is installed and running
 check_docker() {
@@ -31,7 +32,6 @@ check_docker() {
                     log_info "Starting Docker..."
                     sudo systemctl start docker 2>/dev/null || sudo service docker start 2>/dev/null || true
                     sleep 3
-                    # Retry with increasing wait
                     local attempts=0
                     while [[ $attempts -lt 10 ]]; do
                         if docker info &>/dev/null 2>&1 || sudo docker info &>/dev/null 2>&1; then
@@ -55,20 +55,38 @@ check_docker() {
         esac
     fi
 
+    # Determine if sudo is needed for docker daemon access
+    if docker info &>/dev/null 2>&1; then
+        DOCKER_CMD="docker"
+    elif id -nG 2>/dev/null | grep -qw docker; then
+        # User is in docker group but it's not active in this shell session.
+        # Re-exec the entire logos-node command under the docker group.
+        log_info "Activating docker group for this session..."
+        exec sg docker -c "$(printf '%q ' "$LOGOS_NODE_ENTRY" "${LOGOS_NODE_ARGS[@]}")"
+    elif sudo docker info &>/dev/null 2>&1; then
+        DOCKER_CMD="sudo docker"
+        log_warn "Docker requires sudo (user not in docker group)"
+        log_dim "To fix permanently: ${BOLD}sudo usermod -aG docker \$USER${RESET}${DIM} then log out and back in"
+    else
+        die "Cannot connect to Docker daemon"
+    fi
+
     # Detect docker compose command
-    if docker compose version &>/dev/null 2>&1; then
-        DOCKER_COMPOSE="docker compose"
-    elif sudo docker compose version &>/dev/null 2>&1; then
-        DOCKER_COMPOSE="sudo docker compose"
+    if $DOCKER_CMD compose version &>/dev/null 2>&1; then
+        DOCKER_COMPOSE="$DOCKER_CMD compose"
     elif command -v docker-compose &>/dev/null; then
-        DOCKER_COMPOSE="docker-compose"
+        if [[ "$DOCKER_CMD" == "sudo docker" ]]; then
+            DOCKER_COMPOSE="sudo docker-compose"
+        else
+            DOCKER_COMPOSE="docker-compose"
+        fi
     else
         log_error "Docker Compose is required but not found."
         log_info "Install: https://docs.docker.com/compose/install/"
         exit 1
     fi
 
-    export DOCKER_COMPOSE
+    export DOCKER_COMPOSE DOCKER_CMD
 }
 
 # Generate docker-compose.yml from settings
@@ -148,7 +166,7 @@ docker_init_config() {
     log_dim "Running logos-blockchain-node init with bootstrap peers"
 
     # Run init in a temporary container with writable config mount
-    docker run --rm \
+    $DOCKER_CMD run --rm \
         -v "${LOGOS_NODE_DIR}:/home/logos/config" \
         "${LOGOS_DOCKER_IMAGE}:${LOGOS_NODE_VERSION}" \
         init "${peer_args[@]}" \
@@ -158,7 +176,7 @@ docker_init_config() {
 
     # Fallback: if the node binary doesn't support --output, try without it
     if [[ ! -f "$config_path" ]]; then
-        docker run --rm \
+        $DOCKER_CMD run --rm \
             -v "${LOGOS_NODE_DIR}:/home/logos" \
             -w /home/logos \
             "${LOGOS_DOCKER_IMAGE}:${LOGOS_NODE_VERSION}" \
@@ -194,7 +212,7 @@ docker_down() {
 
 # Check if the node container is running
 docker_is_running() {
-    docker ps --filter "name=${LOGOS_CONTAINER_NAME}" --format '{{.Names}}' 2>/dev/null | grep -q "^${LOGOS_CONTAINER_NAME}$"
+    $DOCKER_CMD ps --filter "name=${LOGOS_CONTAINER_NAME}" --format '{{.Names}}' 2>/dev/null | grep -q "^${LOGOS_CONTAINER_NAME}$"
 }
 
 # Wait for the node to become healthy
@@ -204,7 +222,7 @@ docker_health_wait() {
 
     while [[ $elapsed -lt $timeout ]]; do
         local status
-        status="$(docker inspect --format='{{.State.Health.Status}}' "$LOGOS_CONTAINER_NAME" 2>/dev/null)" || true
+        status="$($DOCKER_CMD inspect --format='{{.State.Health.Status}}' "$LOGOS_CONTAINER_NAME" 2>/dev/null)" || true
 
         case "$status" in
             healthy)

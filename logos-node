@@ -14,7 +14,11 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_SOURCE")" && pwd -P)"
 LOGOS_NODE_LIB="$SCRIPT_DIR/lib"
 LOGOS_NODE_DIR="${LOGOS_NODE_DIR:-$HOME/.logos-node}"
 
-export LOGOS_NODE_LIB LOGOS_NODE_DIR
+# Save original invocation for potential re-exec (e.g., sg docker group activation)
+LOGOS_NODE_ENTRY="$SCRIPT_SOURCE"
+LOGOS_NODE_ARGS=("$@")
+
+export LOGOS_NODE_LIB LOGOS_NODE_DIR LOGOS_NODE_ENTRY
 
 # ── Source core libraries ─────────────────────────────────────────────
 source "$LOGOS_NODE_LIB/common.sh"
