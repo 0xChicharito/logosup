@@ -8,6 +8,7 @@ set -euo pipefail
 LOGOS_NODE_REPO="shayanb/logos-node"
 LOGOS_NODE_DIR="${LOGOS_NODE_DIR:-$HOME/.logos-node}"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
+DOCKER_JUST_INSTALLED=false
 
 # ── Colors ────────────────────────────────────────────────────────────
 if [[ -t 1 ]] && [[ "${TERM:-}" != "dumb" ]]; then
@@ -34,7 +35,8 @@ confirm() {
         prompt="$prompt [y/N] "
     fi
     echo -en "${BOLD}?${RESET} ${prompt}"
-    read -r yn
+    # Read from /dev/tty so prompts work even when script is piped (curl | bash)
+    read -r yn < /dev/tty || yn=""
     yn="${yn:-$default}"
     case "$yn" in
         [Yy]*) return 0 ;;
@@ -293,12 +295,18 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
                         info "Starting Docker service..."
                         sudo systemctl enable docker 2>/dev/null || true
                         sudo systemctl start docker 2>/dev/null || true
+                        sleep 2
+
+                        DOCKER_JUST_INSTALLED=true
 
                         if docker info &>/dev/null 2>&1; then
                             success "Docker is running"
+                        elif sudo docker info &>/dev/null 2>&1; then
+                            success "Docker is running (via sudo — will use sudo until you re-login)"
+                            warn "After installation, log out and back in so docker works without sudo."
                         else
-                            warn "Docker installed but may need a re-login to work without sudo."
-                            info "Try: ${BOLD}sudo docker info${RESET} to verify, then log out and back in."
+                            warn "Docker installed but daemon may still be starting."
+                            info "Try: ${BOLD}sudo docker info${RESET} to verify."
                         fi
                     else
                         die "Docker installation failed. Please install manually and re-run."
@@ -346,6 +354,8 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
     if [[ "$DOCKER_MISSING" == "true" ]] || [[ "${MISSING[*]}" == *"docker-compose"* ]]; then
         if docker compose version &>/dev/null 2>&1; then
             success "Docker Compose $(docker compose version --short 2>/dev/null)"
+        elif sudo docker compose version &>/dev/null 2>&1; then
+            success "Docker Compose $(sudo docker compose version --short 2>/dev/null)"
         elif command -v docker-compose &>/dev/null; then
             success "docker-compose available"
         else
@@ -404,8 +414,13 @@ if ! command -v docker &>/dev/null; then
     error "Docker is still missing"
     READY=false
 elif ! docker info &>/dev/null 2>&1; then
-    error "Docker is still not running"
-    READY=false
+    # After fresh install, user may not be in docker group yet — sudo is fine
+    if [[ "$DOCKER_JUST_INSTALLED" == "true" ]] && sudo docker info &>/dev/null 2>&1; then
+        success "Docker is running (via sudo)"
+    else
+        error "Docker is still not running"
+        READY=false
+    fi
 fi
 
 if [[ "$READY" == "false" ]]; then
