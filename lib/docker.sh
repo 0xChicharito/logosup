@@ -96,6 +96,11 @@ generate_compose_file() {
     local dockerfile_dir
     dockerfile_dir="$(resolve_path "$(dirname "${BASH_SOURCE[0]}")/../docker")"
 
+    local host_uid
+    host_uid="$(id -u)"
+    local host_gid
+    host_gid="$(id -g)"
+
     cat > "$compose_path" << YAML
 services:
   logos-node:
@@ -107,23 +112,21 @@ services:
     image: ${LOGOS_DOCKER_IMAGE}:${LOGOS_NODE_VERSION}
     container_name: ${LOGOS_CONTAINER_NAME}
     restart: unless-stopped
+    user: "${host_uid}:${host_gid}"
     ports:
       - "${LOGOS_API_PORT}:8080"
       - "${LOGOS_UDP_PORT}:3000/udp"
     volumes:
-      - ${LOGOS_NODE_DIR}/user_config.yaml:/home/logos/user_config.yaml:ro
-      - logos-data:/home/logos/data
+      - ${LOGOS_NODE_DIR}/user_config.yaml:/app/user_config.yaml:ro
+      - ${LOGOS_NODE_DIR}/data:/app/data
     environment:
-      - LOGOS_BLOCKCHAIN_CIRCUITS=/home/logos/.logos-blockchain-circuits
+      - LOGOS_BLOCKCHAIN_CIRCUITS=/app/circuits
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8080/cryptarchia/info"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 120s
-
-volumes:
-  logos-data:
 YAML
 
     log_success "Generated docker-compose.yml"
@@ -171,11 +174,14 @@ docker_init_config() {
     local host_gid
     host_gid="$(id -g)"
 
+    # Ensure data directory exists
+    mkdir -p "${LOGOS_NODE_DIR}/data"
+
     # Run init in a temporary container, writing config to the mounted volume
     $DOCKER_CMD run --rm \
         --user "${host_uid}:${host_gid}" \
-        -v "${LOGOS_NODE_DIR}:/home/logos" \
-        -w /home/logos \
+        -v "${LOGOS_NODE_DIR}:/app" \
+        -w /app \
         "${LOGOS_DOCKER_IMAGE}:${LOGOS_NODE_VERSION}" \
         init "${peer_args[@]}" 2>&1 | while IFS= read -r line; do
             echo -e "  ${DIM}${line}${RESET}"
@@ -185,10 +191,11 @@ docker_init_config() {
     if [[ ! -f "$config_path" ]]; then
         $DOCKER_CMD run --rm \
             --user "${host_uid}:${host_gid}" \
-            -v "${LOGOS_NODE_DIR}:/home/logos/config" \
+            -v "${LOGOS_NODE_DIR}:/app/config" \
+            -w /app \
             "${LOGOS_DOCKER_IMAGE}:${LOGOS_NODE_VERSION}" \
             init "${peer_args[@]}" \
-            --output /home/logos/config/user_config.yaml 2>&1 | while IFS= read -r line; do
+            --output /app/config/user_config.yaml 2>&1 | while IFS= read -r line; do
                 echo -e "  ${DIM}${line}${RESET}"
             done
     fi

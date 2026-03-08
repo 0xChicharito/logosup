@@ -10,8 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN groupadd -r logos && useradd -r -g logos -m -d /home/logos logos
+# Create app directory (owned by root, readable by all)
+RUN mkdir -p /app/circuits /app/data
 
 # Map Docker TARGETARCH to Logos release naming
 # Download and install node binary + circuits in a single layer
@@ -32,17 +32,15 @@ RUN set -eux; \
     # Download and extract circuits
     curl -fsSL "https://github.com/logos-blockchain/logos-blockchain/releases/download/${NODE_VERSION}/logos-blockchain-circuits-v${CIRCUITS_VERSION}-linux-${LOGOS_ARCH}.tar.gz" \
         | tar -xz -C /tmp/; \
-    mv /tmp/logos-blockchain-circuits-* /home/logos/.logos-blockchain-circuits; \
-    chown -R logos:logos /home/logos/.logos-blockchain-circuits
+    mv /tmp/logos-blockchain-circuits-* /app/circuits; \
+    chmod -R a+rX /app/circuits
 
-# Switch to non-root user
-USER logos
-WORKDIR /home/logos
+WORKDIR /app
 
-ENV LOGOS_BLOCKCHAIN_CIRCUITS=/home/logos/.logos-blockchain-circuits
+ENV LOGOS_BLOCKCHAIN_CIRCUITS=/app/circuits
 
 # Data volume
-VOLUME ["/home/logos/data"]
+VOLUME ["/app/data"]
 
 # API port
 EXPOSE 8080
