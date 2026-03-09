@@ -58,6 +58,20 @@ cmd_update() {
                 if git -C "$cli_dir" checkout "$branch" --quiet 2>/dev/null; then
                     git -C "$cli_dir" pull --quiet 2>/dev/null || true
                     log_success "CLI switched to branch ${BOLD}${branch}${RESET}"
+
+                    # Regenerate monitoring compose if monitoring is set up
+                    local monitoring_compose="$LOGOS_NODE_DIR/docker-compose.monitoring.yml"
+                    if [[ -f "$monitoring_compose" ]]; then
+                        source "$LOGOS_NODE_LIB/monitoring.sh"
+                        generate_monitoring_compose_file
+                        if monitoring_is_running; then
+                            log_step "Restarting monitoring stack..."
+                            monitoring_build || log_warn "Monitoring build failed"
+                            monitoring_up
+                            log_success "Monitoring stack updated"
+                        fi
+                    fi
+
                     if docker_is_running; then
                         log_info "Restart the node to apply changes: ${BOLD}logos-node stop && logos-node start${RESET}"
                     fi
@@ -78,6 +92,20 @@ cmd_update() {
                 if confirm "Update CLI tool?"; then
                     git -C "$cli_dir" pull --quiet
                     log_success "CLI updated"
+
+                    # Regenerate monitoring compose if monitoring is set up
+                    local monitoring_compose="$LOGOS_NODE_DIR/docker-compose.monitoring.yml"
+                    if [[ -f "$monitoring_compose" ]]; then
+                        source "$LOGOS_NODE_LIB/monitoring.sh"
+                        generate_monitoring_compose_file
+                        if monitoring_is_running; then
+                            log_step "Restarting monitoring stack..."
+                            monitoring_build || log_warn "Monitoring build failed"
+                            monitoring_up
+                            log_success "Monitoring stack updated"
+                        fi
+                    fi
+
                     if docker_is_running; then
                         log_info "Restart the node to apply changes: ${BOLD}logos-node stop && logos-node start${RESET}"
                     fi

@@ -102,7 +102,7 @@ monitoring_build() {
     compose_path="$(get_monitoring_compose_path)"
 
     log_step "Building monitoring containers..."
-    $DOCKER_COMPOSE -f "$compose_path" build 2>&1 | while IFS= read -r line; do
+    COMPOSE_IGNORE_ORPHANS=true $DOCKER_COMPOSE -f "$compose_path" build 2>&1 | while IFS= read -r line; do
         echo -e "  ${DIM}${line}${RESET}"
     done
 
@@ -116,13 +116,13 @@ monitoring_build() {
 monitoring_up() {
     local compose_path
     compose_path="$(get_monitoring_compose_path)"
-    $DOCKER_COMPOSE -f "$compose_path" up -d
+    COMPOSE_IGNORE_ORPHANS=true $DOCKER_COMPOSE -f "$compose_path" up -d
 }
 
 monitoring_down() {
     local compose_path
     compose_path="$(get_monitoring_compose_path)"
-    $DOCKER_COMPOSE -f "$compose_path" down
+    COMPOSE_IGNORE_ORPHANS=true $DOCKER_COMPOSE -f "$compose_path" down
 }
 
 monitoring_is_running() {

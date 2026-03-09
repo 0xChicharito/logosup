@@ -172,10 +172,36 @@ def poll_docker_stats():
         # CPU
         container_cpu.set(calculate_cpu_percent(stats))
 
-        # Memory
+        # Memory (cgroup v2 on newer kernels uses different keys)
         mem = stats.get("memory_stats", {})
-        container_memory.set(mem.get("usage", 0))
-        container_memory_limit.set(mem.get("limit", 0))
+        mem_usage = mem.get("usage", 0)
+        mem_limit = mem.get("limit", 0)
+
+        # cgroup v2 fallback: read from /sys/fs/cgroup inside container
+        if not mem_usage:
+            try:
+                cgroup_mem = client.containers.get(CONTAINER_NAME).exec_run(
+                    "cat /sys/fs/cgroup/memory.current", demux=True
+                )
+                if cgroup_mem.exit_code == 0:
+                    mem_usage = int(cgroup_mem.output[0].strip())
+            except Exception:
+                pass
+
+        if not mem_limit:
+            try:
+                cgroup_limit = client.containers.get(CONTAINER_NAME).exec_run(
+                    "cat /sys/fs/cgroup/memory.max", demux=True
+                )
+                if cgroup_limit.exit_code == 0:
+                    val = cgroup_limit.output[0].strip()
+                    if val != b"max":
+                        mem_limit = int(val)
+            except Exception:
+                pass
+
+        container_memory.set(mem_usage)
+        container_memory_limit.set(mem_limit)
 
         # Network I/O (sum all interfaces)
         networks = stats.get("networks", {})
