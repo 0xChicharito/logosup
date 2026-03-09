@@ -10,6 +10,17 @@ cmd_stop() {
         return 0
     fi
 
+    # Stop monitoring first if running
+    local monitoring_compose="$LOGOS_NODE_DIR/docker-compose.monitoring.yml"
+    if [[ -f "$monitoring_compose" ]]; then
+        source "$LOGOS_NODE_LIB/monitoring.sh"
+        if monitoring_is_running; then
+            log_step "Stopping monitoring stack..."
+            monitoring_down
+            log_success "Monitoring stopped"
+        fi
+    fi
+
     log_step "Stopping Logos Node..."
     docker_down
 

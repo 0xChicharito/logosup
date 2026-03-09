@@ -52,9 +52,6 @@ _monitor_start() {
     local compose_path
     compose_path="$(get_monitoring_compose_path)"
 
-    # Ensure the node network exists
-    $DOCKER_CMD network create logos-net 2>/dev/null || true
-
     # Generate compose file if it doesn't exist
     if [[ ! -f "$compose_path" ]]; then
         generate_monitoring_compose_file

@@ -48,6 +48,18 @@ cmd_start() {
         log_info "Check progress with: ${BOLD}logos-node status${RESET}"
         log_info "View logs with:      ${BOLD}logos-node logs${RESET}"
     fi
+
+    # Start monitoring if compose file exists
+    local monitoring_compose
+    monitoring_compose="$LOGOS_NODE_DIR/docker-compose.monitoring.yml"
+    if [[ -f "$monitoring_compose" ]]; then
+        source "$LOGOS_NODE_LIB/monitoring.sh"
+        if ! monitoring_is_running; then
+            log_step "Starting monitoring stack..."
+            monitoring_up
+            log_success "Monitoring running at ${BOLD}http://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
+        fi
+    fi
 }
 
 _show_brief_status() {
