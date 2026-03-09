@@ -34,7 +34,7 @@ The installer detects missing prerequisites and offers to install them automatic
 | `logos-node status` | Show consensus state, peers, wallet balances |
 | `logos-node logs` | Tail node logs (`-f`, `--tail=N`, `--since=1h`) |
 | `logos-node update` | Update node and/or CLI (`update node`, `update cli`, `update all`, `-b BRANCH`) |
-| `logos-node keys` | Display your wallet public keys |
+| `logos-node keys` | Show, backup, or restore wallet keys (`keys backup`, `keys restore`) |
 | `logos-node faucet` | Show faucet URL and keys, open in browser |
 | `logos-node inscribe` | Publish text inscriptions to the blockchain (interactive or piped) |
 | `logos-node monitor` | Manage monitoring dashboard (`monitor start`, `monitor stop`, `monitor status`) |

@@ -163,3 +163,15 @@ get_wallet_keys() {
 
     awk '/^[[:space:]]*known_keys:/{found=1; next} found && /^[[:space:]]+[a-f0-9]+:/{print $1; next} found{exit}' "$config" | tr -d ':'
 }
+
+# Extract the full known_keys block (public key: private key lines)
+get_wallet_keys_full() {
+    local config
+    config="$(get_user_config_path)"
+
+    if [[ ! -f "$config" ]]; then
+        return 1
+    fi
+
+    awk '/^[[:space:]]*known_keys:/{found=1; print; next} found && /^[[:space:]]+[a-f0-9]+:/{print; next} found{exit}' "$config"
+}

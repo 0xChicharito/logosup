@@ -42,7 +42,7 @@ print_usage() {
     echo -e "  ${CYAN}status${RESET}     Show node status and health"
     echo -e "  ${CYAN}logs${RESET}       View node logs"
     echo -e "  ${CYAN}update${RESET}     Update the node and/or CLI tool"
-    echo -e "  ${CYAN}keys${RESET}       Show wallet keys"
+    echo -e "  ${CYAN}keys${RESET}       Show, backup, or restore wallet keys"
     echo -e "  ${CYAN}faucet${RESET}     Open the faucet and display wallet keys"
     echo -e "  ${CYAN}inscribe${RESET}   Publish text inscriptions to the blockchain"
     echo -e "  ${CYAN}monitor${RESET}    Manage monitoring dashboard (Grafana + Prometheus)"
