@@ -36,7 +36,7 @@ The installer detects missing prerequisites and offers to install them automatic
 | `logos-node update` | Update node and/or CLI (`update node`, `update cli`, `update all`) |
 | `logos-node keys` | Display your wallet public keys |
 | `logos-node faucet` | Show faucet URL and keys, open in browser |
-| `logos-node inscribe` | Publish a message to the blockchain (`inscribe "hello"`, `inscribe -i`) |
+| `logos-node inscribe` | Publish text inscriptions to the blockchain (interactive or piped) |
 | `logos-node help` | Show help |
 
 Both `logos-node` and `logosnode` work as the command name.
@@ -58,6 +58,7 @@ Both `logos-node` and `logosnode` work as the command name.
 | Check peer connectivity (`/network/info`) | `logos-node status` queries and displays it |
 | Check wallet balance | `logos-node status` shows balance for each key |
 | Consensus participation | Automatic after UTXO ages ~3.5 hours |
+| Inscribe text on-chain | `logos-node inscribe` runs the text sequencer inside the container |
 
 ## How it works
 
@@ -84,6 +85,23 @@ The node runs inside a Docker container based on `debian:trixie-slim` (glibc 2.3
 1. **Get devnet tokens** — run `logos-node faucet` to see your wallet keys and the faucet URL. Visit the [devnet faucet](https://devnet.blockchain.logos.co/web/faucet/), paste one of your keys, and request funds.
 2. **Wait for UTXO maturity** — tokens must age approximately 3.5 hours (two epochs) before your node can participate in the consensus lottery.
 3. **Monitor** — use `logos-node status` to check consensus mode (Bootstrapping → Online), peer count, and wallet balances. Compare against the [devnet dashboard](https://devnet.blockchain.logos.co/web/).
+
+### Inscribing text
+
+Once your node is running and funded, you can publish text inscriptions to the blockchain using the built-in text sequencer:
+
+```sh
+# Interactive mode — type text and press Enter to inscribe each line
+logos-node inscribe
+
+# Pipe mode — inscribe text from stdin
+echo "Hello World, from Lisbon Circle" | logos-node inscribe -
+
+# From a file
+logos-node inscribe - < message.txt
+```
+
+The sequencer creates a signing key (`sequencer.key`) and checkpoint file (`sequencer.checkpoint`) in the node data directory for crash recovery. These persist across restarts.
 
 ## Configuration
 
