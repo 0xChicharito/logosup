@@ -12,6 +12,7 @@ done
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_SOURCE")" && pwd -P)"
 
 LOGOS_NODE_LIB="$SCRIPT_DIR/lib"
+LOGOS_NODE_CLI_VERSION="$(cat "$SCRIPT_DIR/VERSION" 2>/dev/null || echo "unknown")"
 LOGOS_NODE_DIR="${LOGOS_NODE_DIR:-$HOME/.logos-node}"
 
 # Save original invocation for potential re-exec (e.g., sg docker group activation)
@@ -70,7 +71,7 @@ case "$COMMAND" in
         exit 0
         ;;
     version|-v|--version)
-        echo "logos-node CLI"
+        echo "logos-node CLI v${LOGOS_NODE_CLI_VERSION}"
         echo "Node version: ${LOGOS_NODE_VERSION:-not installed}"
         exit 0
         ;;

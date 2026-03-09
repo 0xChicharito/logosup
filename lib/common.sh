@@ -168,7 +168,8 @@ print_banner() {
  |_____\___/ \__, |\___/|___/  |_| \_|\___/ \__,_|\___|
              |___/
 BANNER
-    echo -e "${RESET}"
+    echo -e "${DIM}  v${LOGOS_NODE_CLI_VERSION:-}${RESET}"
+    echo ""
 }
 
 print_separator() {
