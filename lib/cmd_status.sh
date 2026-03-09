@@ -79,12 +79,20 @@ cmd_status() {
     if [[ -n "$keys" ]]; then
         log_step "Wallet"
         while IFS= read -r key; do
-            local balance_resp
-            balance_resp="$(curl -sf "${api_url}/wallet/${key}/balance" 2>/dev/null)" || true
-            if [[ -n "$balance_resp" ]]; then
+            local balance_resp http_code
+            # Use -s (no -f) so we get the body even on HTTP errors
+            balance_resp="$(curl -s -w '\n%{http_code}' "${api_url}/wallet/${key}/balance" 2>/dev/null)" || true
+            http_code="$(echo "$balance_resp" | tail -1)"
+            balance_resp="$(echo "$balance_resp" | sed '$d')"
+
+            if [[ "$http_code" == "200" && -n "$balance_resp" ]]; then
                 local balance
                 balance="$(echo "$balance_resp" | sed -E 's/.*"balance":([0-9]+).*/\1/')"
                 log_info "${DIM}${key:0:16}...${RESET}  balance: ${BOLD}${balance}${RESET}"
+            elif [[ "$http_code" == "200" ]]; then
+                log_info "${DIM}${key:0:16}...${RESET}  balance: ${BOLD}0${RESET}"
+            elif echo "$balance_resp" | grep -qi "not found"; then
+                log_info "${DIM}${key:0:16}...${RESET}  balance: ${BOLD}0${RESET} ${DIM}(no funds received yet)${RESET}"
             else
                 log_info "${DIM}${key:0:16}...${RESET}  balance: ${DIM}unavailable${RESET}"
             fi
