@@ -108,4 +108,10 @@ cmd_install() {
         source "$LOGOS_NODE_LIB/cmd_start.sh"
         cmd_start
     fi
+
+    echo ""
+    if confirm "Enable monitoring dashboard? (Grafana + Prometheus)" "n"; then
+        source "$LOGOS_NODE_LIB/cmd_monitor.sh"
+        cmd_monitor start
+    fi
 }

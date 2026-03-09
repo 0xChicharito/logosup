@@ -128,6 +128,12 @@ services:
       timeout: 5s
       retries: 3
       start_period: 120s
+    networks:
+      - logos-net
+
+networks:
+  logos-net:
+    name: logos-net
 YAML
 
     log_success "Generated docker-compose.yml"
