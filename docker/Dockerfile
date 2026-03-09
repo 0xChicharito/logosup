@@ -32,7 +32,9 @@ RUN set -eux; \
     # Download and extract circuits
     curl -fsSL "https://github.com/logos-blockchain/logos-blockchain/releases/download/${NODE_VERSION}/logos-blockchain-circuits-v${CIRCUITS_VERSION}-linux-${LOGOS_ARCH}.tar.gz" \
         | tar -xz -C /tmp/; \
-    mv /tmp/logos-blockchain-circuits-* /app/circuits; \
+    # Move contents (not the wrapper dir) into /app/circuits/
+    mv /tmp/logos-blockchain-circuits-*/* /app/circuits/; \
+    rm -rf /tmp/logos-blockchain-circuits-*; \
     chmod -R a+rX /app/circuits
 
 WORKDIR /app

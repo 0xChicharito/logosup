@@ -31,6 +31,15 @@ cmd_update() {
         if [[ -d "$cli_dir/.git" ]]; then
             if ! check_cli_update; then
                 log_info "CLI update available"
+                # Show what changed since current HEAD
+                echo ""
+                git -C "$cli_dir" log --oneline HEAD..@{u} 2>/dev/null | while IFS= read -r line; do
+                    echo -e "  ${GREEN}+${RESET} $line"
+                done
+                git -C "$cli_dir" diff --stat HEAD..@{u} 2>/dev/null | while IFS= read -r line; do
+                    echo -e "  ${DIM}$line${RESET}"
+                done
+                echo ""
                 if confirm "Update CLI tool?"; then
                     git -C "$cli_dir" pull --quiet
                     log_success "CLI updated"
