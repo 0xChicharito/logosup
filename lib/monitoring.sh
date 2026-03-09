@@ -45,8 +45,10 @@ services:
       - NODE_API_URL=http://${LOGOS_CONTAINER_NAME}:8080
       - CONTAINER_NAME=${LOGOS_CONTAINER_NAME}
       - POLL_INTERVAL=15
+    pid: host
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/host/proc:ro
       - ${LOGOS_NODE_DIR}/user_config.yaml:/app/user_config.yaml:ro
     networks:
       - logos-net

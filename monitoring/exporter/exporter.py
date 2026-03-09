@@ -10,6 +10,7 @@ import re
 import time
 import threading
 import logging
+import shutil
 
 import requests
 import docker
@@ -51,6 +52,14 @@ container_memory_limit = Gauge("logos_container_memory_limit_bytes", "Container 
 container_net_rx = Gauge("logos_container_network_rx_bytes", "Container network received bytes")
 container_net_tx = Gauge("logos_container_network_tx_bytes", "Container network transmitted bytes")
 container_running = Gauge("logos_container_running", "Whether the container is running (1=yes, 0=no)")
+
+# Host system metrics
+host_memory_total = Gauge("logos_host_memory_total_bytes", "Host total memory in bytes")
+host_memory_used = Gauge("logos_host_memory_used_bytes", "Host used memory in bytes")
+host_disk_usage = Gauge("logos_host_disk_usage_percent", "Host disk usage percentage")
+host_load_1m = Gauge("logos_host_load_1m", "Host 1-minute load average")
+host_load_5m = Gauge("logos_host_load_5m", "Host 5-minute load average")
+host_load_15m = Gauge("logos_host_load_15m", "Host 15-minute load average")
 
 
 def parse_wallet_keys(config_path):
@@ -182,6 +191,42 @@ def poll_docker_stats():
         container_running.set(0)
 
 
+def poll_host_metrics():
+    """Poll host system metrics (memory, disk, load)."""
+    try:
+        # Memory from host's /proc/meminfo (mounted at /host/proc)
+        meminfo_path = "/host/proc/meminfo" if os.path.exists("/host/proc/meminfo") else "/proc/meminfo"
+        with open(meminfo_path, "r") as f:
+            meminfo = {}
+            for line in f:
+                parts = line.split()
+                if len(parts) >= 2:
+                    meminfo[parts[0].rstrip(":")] = int(parts[1]) * 1024  # kB to bytes
+
+        total = meminfo.get("MemTotal", 0)
+        available = meminfo.get("MemAvailable", 0)
+        host_memory_total.set(total)
+        host_memory_used.set(total - available)
+    except Exception as e:
+        log.debug("Host memory error: %s", e)
+
+    try:
+        # Load average
+        load1, load5, load15 = os.getloadavg()
+        host_load_1m.set(load1)
+        host_load_5m.set(load5)
+        host_load_15m.set(load15)
+    except Exception as e:
+        log.debug("Host load error: %s", e)
+
+    try:
+        # Disk usage for the data directory
+        usage = shutil.disk_usage("/")
+        host_disk_usage.set((usage.used / usage.total) * 100.0)
+    except Exception as e:
+        log.debug("Host disk error: %s", e)
+
+
 def poll_loop():
     """Main polling loop running in a background thread."""
     log.info("Poll loop started")
@@ -190,6 +235,7 @@ def poll_loop():
         try:
             poll_node_api()
             poll_docker_stats()
+            poll_host_metrics()
             if first_run:
                 log.info("First poll completed successfully")
                 first_run = False
