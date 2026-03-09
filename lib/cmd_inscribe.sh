@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# DESCRIPTION: Inscribe (publish) messages to the Logos blockchain
+# DESCRIPTION: Inscribe (publish) text to the Logos blockchain
 
 cmd_inscribe() {
     detect_platform
@@ -9,89 +9,61 @@ cmd_inscribe() {
         die "Logos Node is not running. Start it first with: logos-node start"
     fi
 
-    local message="${1:-}"
+    local mode="${1:-}"
 
-    if [[ -z "$message" ]]; then
-        echo ""
-        log_step "Inscribe a message to the Logos blockchain"
-        echo ""
-        log_info "Publish text messages on-chain using the built-in text sequencer."
-        log_info "Messages are inscribed as transactions on the Logos blockchain."
-        echo ""
-        log_info "${BOLD}Usage:${RESET}"
-        log_info "  logos-node inscribe \"your message here\""
-        log_info "  logos-node inscribe --interactive"
-        echo ""
-        log_info "${BOLD}Options:${RESET}"
-        log_info "  --interactive, -i    Enter interactive mode for multiple messages"
-        echo ""
-        return 0
-    fi
+    case "$mode" in
+        -h|--help|help|"")
+            echo ""
+            log_step "Inscribe text to the Logos blockchain"
+            echo ""
+            log_info "Publish text inscriptions as zone blocks using the built-in text sequencer."
+            log_info "The sequencer reads text from stdin and publishes it on-chain."
+            echo ""
+            log_info "${BOLD}Usage:${RESET}"
+            log_info "  logos-node inscribe                       # Interactive: type and publish"
+            log_info "  echo \"hello\" | logos-node inscribe -       # Pipe text to inscribe"
+            log_info "  logos-node inscribe < message.txt          # Inscribe from a file"
+            echo ""
+            log_info "${BOLD}Options:${RESET}"
+            log_info "  The sequencer creates a signing key (sequencer.key) and checkpoint"
+            log_info "  file (sequencer.checkpoint) in the node data directory for crash recovery."
+            echo ""
 
-    # Interactive mode
-    if [[ "$message" == "--interactive" ]] || [[ "$message" == "-i" ]]; then
-        _inscribe_interactive
-        return $?
-    fi
-
-    _inscribe_message "$message"
-}
-
-_inscribe_message() {
-    local message="$1"
-
-    log_step "Inscribing message..."
-
-    # Run the inscribe command inside the running container
-    local output
-    output="$($DOCKER_CMD exec "$LOGOS_CONTAINER_NAME" \
-        logos-blockchain-node inscribe "$message" 2>&1)" || true
-
-    if [[ $? -eq 0 ]] && [[ -n "$output" ]]; then
-        echo -e "  ${DIM}${output}${RESET}"
-        log_success "Message inscribed"
-    else
-        # If the container exec approach doesn't work, try via API
-        # The inscribe subcommand may need to run as a separate process
-        output="$($DOCKER_CMD run --rm \
-            --network container:"${LOGOS_CONTAINER_NAME}" \
-            "${LOGOS_DOCKER_IMAGE}:${LOGOS_NODE_VERSION}" \
-            inscribe "$message" 2>&1)" || true
-
-        if [[ -n "$output" ]]; then
-            echo -e "  ${DIM}${output}${RESET}"
-        fi
-
-        if echo "$output" | grep -qi "error\|failed\|panic"; then
-            log_error "Failed to inscribe message"
+            if [[ -z "$mode" ]]; then
+                if confirm "Start interactive inscription?"; then
+                    _run_inscribe
+                fi
+            fi
+            return 0
+            ;;
+        -)
+            # Pipe mode: read from stdin
+            _run_inscribe
+            ;;
+        *)
+            # Any other arg: show help
+            log_error "Unknown option: $mode"
+            log_info "Run 'logos-node inscribe --help' for usage"
             return 1
-        else
-            log_success "Message inscribed"
-        fi
-    fi
+            ;;
+    esac
 }
 
-_inscribe_interactive() {
-    log_step "Interactive inscription mode"
-    log_info "Type a message and press Enter to inscribe. Type 'exit' or Ctrl+C to quit."
+_run_inscribe() {
+    log_step "Starting text sequencer..."
+    log_info "Type text and press Enter to inscribe. Press Ctrl+C to stop."
     echo ""
 
-    while true; do
-        echo -en "${BOLD}inscribe>${RESET} "
-        local msg
-        read -r msg < /dev/tty 2>/dev/null || break
+    # Run inscribe inside the container, connecting to the local node API.
+    # The sequencer key and checkpoint are stored in the data volume.
+    $DOCKER_CMD exec -it \
+        -w /app/data \
+        "$LOGOS_CONTAINER_NAME" \
+        logos-blockchain-node inscribe \
+            --node-url "http://localhost:8080" \
+            --key-path /app/data/sequencer.key \
+            --checkpoint-path /app/data/sequencer.checkpoint
 
-        if [[ -z "$msg" ]]; then
-            continue
-        fi
-
-        if [[ "$msg" == "exit" ]] || [[ "$msg" == "quit" ]]; then
-            break
-        fi
-
-        _inscribe_message "$msg"
-        echo ""
-    done
-
-    log_info "Exiting interactive mode"
+    echo ""
+    log_info "Sequencer stopped"
 }
