@@ -87,7 +87,7 @@ services:
 
 networks:
   logos-net:
-    name: logos-net
+    external: true
 COMPOSE
 
     log_success "Monitoring compose file generated at $compose_path"
