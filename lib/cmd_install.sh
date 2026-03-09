@@ -102,6 +102,8 @@ cmd_install() {
     log_info "View logs:          ${BOLD}logos-node logs${RESET}"
     log_info "View your keys:     ${BOLD}logos-node keys${RESET}"
     log_info "Open faucet:        ${BOLD}logos-node faucet${RESET}"
+    log_info "Monitoring:         ${BOLD}logos-node monitor start${RESET}"
+    log_info "Grafana dashboard:  ${BOLD}http://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
     echo ""
 
     if confirm "Start the node now?"; then
@@ -109,9 +111,15 @@ cmd_install() {
         cmd_start
     fi
 
-    echo ""
-    if confirm "Enable monitoring dashboard? (Grafana + Prometheus)" "n"; then
-        source "$LOGOS_NODE_LIB/cmd_monitor.sh"
-        cmd_monitor start
+    # Only offer monitoring if not already running
+    source "$LOGOS_NODE_LIB/monitoring.sh"
+    if monitoring_is_running; then
+        log_info "Monitoring dashboard is running at ${BOLD}http://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
+    else
+        echo ""
+        if confirm "Enable monitoring dashboard? (Grafana + Prometheus)" "n"; then
+            source "$LOGOS_NODE_LIB/cmd_monitor.sh"
+            cmd_monitor start
+        fi
     fi
 }

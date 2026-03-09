@@ -58,6 +58,9 @@ cmd_update() {
                 if git -C "$cli_dir" checkout "$branch" --quiet 2>/dev/null; then
                     git -C "$cli_dir" pull --quiet 2>/dev/null || true
                     log_success "CLI switched to branch ${BOLD}${branch}${RESET}"
+                    if docker_is_running; then
+                        log_info "Restart the node to apply changes: ${BOLD}logos-node stop && logos-node start${RESET}"
+                    fi
                 else
                     die "Branch '${branch}' not found"
                 fi
@@ -75,6 +78,9 @@ cmd_update() {
                 if confirm "Update CLI tool?"; then
                     git -C "$cli_dir" pull --quiet
                     log_success "CLI updated"
+                    if docker_is_running; then
+                        log_info "Restart the node to apply changes: ${BOLD}logos-node stop && logos-node start${RESET}"
+                    fi
                 fi
             else
                 log_success "CLI is up to date"
