@@ -177,28 +177,44 @@ def poll_docker_stats():
         mem_usage = mem.get("usage", 0)
         mem_limit = mem.get("limit", 0)
 
-        # cgroup v2 fallback: read from /sys/fs/cgroup inside container
-        if not mem_usage:
+        # cgroup v2 fallback: read from host cgroup filesystem (mounted at /host/sys/fs/cgroup)
+        if not mem_usage or not mem_limit:
             try:
-                cgroup_mem = client.containers.get(CONTAINER_NAME).exec_run(
-                    "cat /sys/fs/cgroup/memory.current", demux=True
-                )
-                if cgroup_mem.exit_code == 0:
-                    mem_usage = int(cgroup_mem.output[0].strip())
-            except Exception:
-                pass
+                container_full_id = container.id
+                cgroup_host = "/host/sys/fs/cgroup"
 
-        if not mem_limit:
-            try:
-                cgroup_limit = client.containers.get(CONTAINER_NAME).exec_run(
-                    "cat /sys/fs/cgroup/memory.max", demux=True
-                )
-                if cgroup_limit.exit_code == 0:
-                    val = cgroup_limit.output[0].strip()
-                    if val != b"max":
-                        mem_limit = int(val)
-            except Exception:
-                pass
+                # Try common cgroup v2 paths for Docker containers
+                cgroup_base = None
+                for path in [
+                    f"{cgroup_host}/system.slice/docker-{container_full_id}.scope",
+                    f"{cgroup_host}/docker/{container_full_id}",
+                ]:
+                    if os.path.isdir(path):
+                        cgroup_base = path
+                        break
+
+                if cgroup_base:
+                    if not mem_usage:
+                        p = os.path.join(cgroup_base, "memory.current")
+                        if os.path.exists(p):
+                            with open(p) as f:
+                                mem_usage = int(f.read().strip())
+
+                    if not mem_limit:
+                        p = os.path.join(cgroup_base, "memory.max")
+                        if os.path.exists(p):
+                            val = open(p).read().strip()
+                            if val != "max":
+                                mem_limit = int(val)
+                            else:
+                                # "max" = no limit, use host total memory
+                                mem_limit = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+
+                    log.debug("cgroup v2 memory: usage=%s limit=%s (path=%s)", mem_usage, mem_limit, cgroup_base)
+                else:
+                    log.debug("cgroup v2: no cgroup dir found for container %s", container_full_id[:12])
+            except Exception as e:
+                log.debug("cgroup v2 memory fallback error: %s", e)
 
         container_memory.set(mem_usage)
         container_memory_limit.set(mem_limit)

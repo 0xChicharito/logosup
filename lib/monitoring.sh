@@ -49,6 +49,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc:/host/proc:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
       - ${LOGOS_NODE_DIR}/user_config.yaml:/app/user_config.yaml:ro
     networks:
       - logos-net
