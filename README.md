@@ -40,38 +40,62 @@ The installer detects missing prerequisites and offers to install them automatic
 
 Both `logos-node` and `logosnode` work as the command name.
 
+## What it automates
+
+`logos-node` automates the full [quickstart guide](https://github.com/logos-co/logos-docs/blob/main/docs/blockchain/quickstart-guide-for-the-logos-blockchain-node.md) flow:
+
+| Quickstart step | What `logos-node` does |
+|-----------------|----------------------|
+| Download node binary | Docker image downloads it at build time |
+| Download ZK circuits | Docker image downloads and installs them at build time |
+| Install circuits to `~/.logos-blockchain-circuits` | Baked into the image at `/app/circuits`, set via `LOGOS_BLOCKCHAIN_CIRCUITS` env var |
+| Run `logos-blockchain-node init` with bootstrap peers | `logos-node install` runs init inside the container, generates `user_config.yaml` with fresh keys |
+| Run the node | `logos-node start` launches the container via Docker Compose |
+| Find wallet keys | `logos-node keys` parses and displays them |
+| Request faucet tokens | `logos-node faucet` shows keys + faucet URL, opens browser |
+| Check consensus state (`/cryptarchia/info`) | `logos-node status` queries and displays it |
+| Check peer connectivity (`/network/info`) | `logos-node status` queries and displays it |
+| Check wallet balance | `logos-node status` shows balance for each key |
+| Consensus participation | Automatic after UTXO ages ~3.5 hours |
+
 ## How it works
 
 ### Installation flow
 
-1. `install.sh` checks prerequisites (Docker, git, curl) — offering to install anything missing — clones this repo to `~/.logos-node/cli/`, and creates `logos-node`/`logosnode` symlinks in your PATH.
-2. `logos-node install` fetches the latest release from the [Logos Blockchain releases](https://github.com/logos-blockchain/logos-blockchain/releases/), builds a Docker image containing the node binary and ZK circuit files, runs `logos-blockchain-node init` to generate your `user_config.yaml` with fresh cryptographic keys, and displays your wallet keys with instructions for the devnet faucet.
+1. **`install.sh`** — checks prerequisites (Docker, git, curl), offers to install anything missing, handles Docker group permissions, clones this repo to `~/.logos-node/cli/`, and creates `logos-node`/`logosnode` symlinks in your PATH.
 
-### Node architecture
+2. **`logos-node install`** — fetches the latest release from the [Logos Blockchain releases](https://github.com/logos-blockchain/logos-blockchain/releases/), builds a Docker image containing the node binary and ZK circuit files, runs `logos-blockchain-node init` inside the container to generate `user_config.yaml` with fresh cryptographic keys and auto-detected public IP, then displays wallet keys with faucet instructions.
 
-The node runs inside a Docker container based on `debian:bookworm-slim`:
-- Non-root `logos` user
-- Node binary and ZK circuits baked into the image
-- `user_config.yaml` mounted read-only from the host
-- Persistent data volume for blockchain state
-- Health check via the node's HTTP API
+### Docker setup
+
+The node runs inside a Docker container based on `debian:trixie-slim` (glibc 2.39+):
+
+- **Node binary and ZK circuits** are downloaded from GitHub releases and baked into the image at build time — no manual download or extraction needed
+- **`user_config.yaml`** is mounted read-only from `~/.logos-node/`
+- **Data directory** (`~/.logos-node/data/`) is bind-mounted for RocksDB, logs, and other runtime state
+- **Runs as your host user** (UID/GID) to avoid permission issues
+- **Health check** polls the node's `/cryptarchia/info` API endpoint
+- **Restart policy** `unless-stopped` keeps the node running across reboots
+- **Ports**: `8080` (HTTP API), `3000/udp` (libp2p peer-to-peer)
 
 ### After install
 
-1. **Get devnet tokens** — visit the [devnet faucet](https://devnet.blockchain.logos.co/web/faucet/), paste one of your wallet keys, and request funds. Or run `logos-node faucet` to see your keys and open the faucet.
+1. **Get devnet tokens** — run `logos-node faucet` to see your wallet keys and the faucet URL. Visit the [devnet faucet](https://devnet.blockchain.logos.co/web/faucet/), paste one of your keys, and request funds.
 2. **Wait for UTXO maturity** — tokens must age approximately 3.5 hours (two epochs) before your node can participate in the consensus lottery.
-3. **Monitor** — use `logos-node status` to check consensus mode, peer count, and wallet balances. Compare against the [devnet dashboard](https://devnet.blockchain.logos.co/web/).
+3. **Monitor** — use `logos-node status` to check consensus mode (Bootstrapping → Online), peer count, and wallet balances. Compare against the [devnet dashboard](https://devnet.blockchain.logos.co/web/).
 
 ## Configuration
 
 All configuration lives in `~/.logos-node/` (override with `LOGOS_NODE_DIR` env var):
 
-| File | Purpose |
-|------|---------|
-| `settings.env` | CLI settings (versions, ports, URLs, peers) |
-| `user_config.yaml` | Node configuration with wallet keys (generated by `install`) |
-| `docker-compose.yml` | Generated compose file |
-| `cli/` | Cloned CLI repository |
+```
+~/.logos-node/
+├── settings.env          # CLI settings (versions, ports, URLs, peers)
+├── user_config.yaml      # Node config with wallet keys (generated by install)
+├── data/                 # Node runtime data (RocksDB, logs)
+│   └── db/               # RocksDB blockchain state
+└── cli/                  # Cloned CLI repository
+```
 
 ### Settings
 
@@ -103,7 +127,7 @@ logos-node/
 ├── install.sh              # One-line installer (curl|bash)
 ├── logos-node               # CLI entry point
 ├── docker/
-│   └── Dockerfile           # Multi-arch node container
+│   └── Dockerfile           # Multi-arch node container (debian:trixie-slim)
 └── lib/
     ├── common.sh            # Colors, logging, spinners, platform detection
     ├── config.sh            # Settings management (~/.logos-node/)
