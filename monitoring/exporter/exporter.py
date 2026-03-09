@@ -93,10 +93,15 @@ def poll_node_api():
         for m in ("Online", "Bootstrapping"):
             consensus_mode.labels(mode=m).set(1 if m == mode else 0)
 
-        node_slot.set(data.get("slot", 0))
-        node_height.set(data.get("height", 0))
+        slot = data.get("slot", 0)
+        height = data.get("height", 0)
+        node_slot.set(slot)
+        node_height.set(height)
 
-    except Exception:
+        log.debug("Polled node: mode=%s slot=%s height=%s", mode, slot, height)
+
+    except Exception as e:
+        log.debug("Node API unreachable: %s", e)
         node_up.set(0)
         return  # Skip other endpoints if node is down
 
@@ -179,10 +184,15 @@ def poll_docker_stats():
 
 def poll_loop():
     """Main polling loop running in a background thread."""
+    log.info("Poll loop started")
+    first_run = True
     while True:
         try:
             poll_node_api()
             poll_docker_stats()
+            if first_run:
+                log.info("First poll completed successfully")
+                first_run = False
         except Exception as e:
             log.error("Poll error: %s", e)
         time.sleep(POLL_INTERVAL)

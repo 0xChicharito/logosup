@@ -39,6 +39,8 @@ services:
       context: ${monitoring_dir}/exporter
     container_name: logos-exporter
     restart: unless-stopped
+    ports:
+      - "9100:9100"
     environment:
       - NODE_API_URL=http://${LOGOS_CONTAINER_NAME}:8080
       - CONTAINER_NAME=${LOGOS_CONTAINER_NAME}
