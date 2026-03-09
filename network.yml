@@ -1,0 +1,26 @@
+# Logos Network Configuration
+# Swap this file to connect to a different devnet/testnet/mainnet.
+
+network: devnet
+
+# Bootstrap peers for initial network discovery.
+# Once connected, the node uses Kademlia to find additional peers.
+bootstrap_peers:
+  - /ip4/65.109.51.37/udp/3000/quic-v1/p2p/12D3KooWL7a8LBbLRYnabptHPFBCmAs49Y7cVMqvzuSdd43tAJk8
+  - /ip4/65.109.51.37/udp/3001/quic-v1/p2p/12D3KooWPLeAcachoUm68NXGD7tmNziZkVeMmeBS5NofyukuMRJh
+  - /ip4/65.109.51.37/udp/3002/quic-v1/p2p/12D3KooWKFNe4gS5DcCcRUVGdMjZp3fUWu6q6gG5R846Ui1pccHD
+  - /ip4/65.109.51.37/udp/3003/quic-v1/p2p/12D3KooWAnriLgXyQnGTYz1zPWPkQL3rthTKYLzuAP7MMnbgsxzR
+
+# Node release repository
+node_repo: logos-blockchain/logos-blockchain
+
+# CLI release repository
+cli_repo: shayanb/logos-node
+
+# Default ports
+api_port: 8080
+udp_port: 3000
+
+# Devnet services
+faucet_url: https://devnet.blockchain.logos.co/web/faucet/
+dashboard_url: https://devnet.blockchain.logos.co/web/
