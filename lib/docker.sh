@@ -203,6 +203,18 @@ docker_init_config() {
 
     if [[ -f "$config_path" ]]; then
         chmod 600 "$config_path"
+
+        # Patch HTTP backend to bind to 0.0.0.0 so Docker port mapping works
+        # (default is 127.0.0.1, which blocks access from outside the container)
+        if grep -q '127\.0\.0\.1' "$config_path"; then
+            if [[ "$(uname -s)" == "Darwin" ]]; then
+                sed -i '' 's/127\.0\.0\.1/0.0.0.0/g' "$config_path"
+            else
+                sed -i 's/127\.0\.0\.1/0.0.0.0/g' "$config_path"
+            fi
+            log_dim "Patched HTTP backend to bind 0.0.0.0 (accessible from local network)"
+        fi
+
         log_success "Node configuration generated at $config_path"
         return 0
     else
