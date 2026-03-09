@@ -13,3 +13,4 @@ Thumbs.db
 user_config.yaml
 settings.env
 docker-compose.yml
+/.claude

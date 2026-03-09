@@ -37,6 +37,7 @@ The installer detects missing prerequisites and offers to install them automatic
 | `logos-node keys` | Display your wallet public keys |
 | `logos-node faucet` | Show faucet URL and keys, open in browser |
 | `logos-node inscribe` | Publish text inscriptions to the blockchain (interactive or piped) |
+| `logos-node monitor` | Manage monitoring dashboard (`monitor start`, `monitor stop`, `monitor status`) |
 | `logos-node help` | Show help |
 
 Both `logos-node` and `logosnode` work as the command name.
@@ -103,6 +104,22 @@ logos-node inscribe - < message.txt
 
 The sequencer creates a signing key (`sequencer.key`) and checkpoint file (`sequencer.checkpoint`) in the node data directory for crash recovery. These persist across restarts.
 
+### Monitoring
+
+Run a Grafana dashboard with Prometheus metrics for your node:
+
+```sh
+logos-node monitor start     # Start Grafana + Prometheus + metrics exporter
+logos-node monitor status    # Show status and Grafana URL
+logos-node monitor stop      # Stop the monitoring stack (node keeps running)
+```
+
+Grafana is available at `http://localhost:3001` (or your RPi's IP on port 3001). No login required to view — dashboards are pre-provisioned with panels for consensus state, peer count, wallet balance, and container resource usage.
+
+The monitoring stack runs as separate Docker containers alongside the node. You can also opt in during `logos-node install`.
+
+> **Upstream**: The Logos blockchain node is adding native Prometheus metrics ([#2012](https://github.com/logos-blockchain/logos-blockchain/pull/2012)) and Grafana dashboards ([#2227](https://github.com/logos-blockchain/logos-blockchain/pull/2227)). Once merged, our Prometheus config will automatically scrape the node's native `/metrics` endpoint alongside the custom exporter, unlocking deeper metrics for consensus, mempool, chainsync, and more.
+
 ## Configuration
 
 All configuration lives in `~/.logos-node/` (override with `LOGOS_NODE_DIR` env var):
@@ -164,11 +181,16 @@ logos-node/
 ├── network.yml              # Network config (peers, ports, URLs)
 ├── docker/
 │   └── Dockerfile           # Multi-arch node container (debian:trixie-slim)
+├── monitoring/
+│   ├── exporter/            # Python Prometheus exporter (polls node API + Docker stats)
+│   ├── prometheus/          # Prometheus scrape config
+│   └── grafana/             # Grafana provisioning + pre-built dashboard
 └── lib/
     ├── common.sh            # Colors, logging, spinners, platform detection
     ├── config.sh            # Settings management (~/.logos-node/ + network.yml)
     ├── releases.sh          # GitHub release auto-detection
     ├── docker.sh            # Docker lifecycle helpers
+    ├── monitoring.sh        # Monitoring stack helpers
     └── cmd_*.sh             # Individual command implementations
 ```
 

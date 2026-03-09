@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'logos-exporter'
+    static_configs:
+      - targets: ['logos-exporter:9100']
+
+  # Native node metrics (available once upstream PR #2012 is merged)
+  # Fails gracefully until the /metrics endpoint exists
+  - job_name: 'logos-node'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['logos-node:8080']

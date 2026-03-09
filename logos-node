@@ -44,6 +44,7 @@ print_usage() {
     echo -e "  ${CYAN}keys${RESET}       Show wallet keys"
     echo -e "  ${CYAN}faucet${RESET}     Open the faucet and display wallet keys"
     echo -e "  ${CYAN}inscribe${RESET}   Publish text inscriptions to the blockchain"
+    echo -e "  ${CYAN}monitor${RESET}    Manage monitoring dashboard (Grafana + Prometheus)"
     echo -e "  ${CYAN}help${RESET}       Show this help message"
     echo ""
     echo -e "${BOLD}Examples:${RESET}"
