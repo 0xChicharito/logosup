@@ -8,17 +8,39 @@ cmd_update() {
 
     local update_cli=false
     local update_node=false
+    local branch=""
 
-    case "${1:-all}" in
-        cli)  update_cli=true ;;
-        node) update_node=true ;;
-        all)  update_cli=true; update_node=true ;;
-        *)
-            log_error "Unknown update target: $1"
-            log_info "Usage: logos-node update [cli|node|all]"
-            return 1
-            ;;
-    esac
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -b|--branch)
+                branch="${2:-}"
+                [[ -z "$branch" ]] && die "Missing branch name after $1"
+                shift 2
+                ;;
+            cli)  update_cli=true; shift ;;
+            node) update_node=true; shift ;;
+            all)  update_cli=true; update_node=true; shift ;;
+            -h|--help|help)
+                log_info "Usage: logos-node update [cli|node|all] [-b BRANCH]"
+                log_info ""
+                log_info "Options:"
+                log_info "  -b, --branch BRANCH   Switch CLI to a specific git branch"
+                return 0
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                log_info "Usage: logos-node update [cli|node|all] [-b BRANCH]"
+                return 1
+                ;;
+        esac
+    done
+
+    # Default to updating everything
+    if [[ "$update_cli" == "false" && "$update_node" == "false" ]]; then
+        update_cli=true
+        update_node=true
+    fi
 
     print_banner
 
@@ -29,7 +51,17 @@ cmd_update() {
         local cli_dir="$LOGOS_NODE_DIR/cli"
 
         if [[ -d "$cli_dir/.git" ]]; then
-            if ! check_cli_update; then
+            # Switch branch if requested
+            if [[ -n "$branch" ]]; then
+                log_info "Switching to branch: ${BOLD}${branch}${RESET}"
+                git -C "$cli_dir" fetch --all --quiet 2>/dev/null
+                if git -C "$cli_dir" checkout "$branch" --quiet 2>/dev/null; then
+                    git -C "$cli_dir" pull --quiet 2>/dev/null || true
+                    log_success "CLI switched to branch ${BOLD}${branch}${RESET}"
+                else
+                    die "Branch '${branch}' not found"
+                fi
+            elif ! check_cli_update; then
                 log_info "CLI update available"
                 # Show what changed since current HEAD
                 echo ""

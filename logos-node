@@ -52,6 +52,7 @@ print_usage() {
     echo "  logos-node status                     # Check node health"
     echo "  logos-node logs -f                    # Follow logs"
     echo "  logos-node update                     # Update node + CLI"
+    echo "  logos-node update -b dev              # Switch CLI to a branch"
     echo "  logos-node inscribe                   # Inscribe text on-chain"
     echo ""
     echo -e "${BOLD}Config:${RESET} $LOGOS_NODE_DIR"
