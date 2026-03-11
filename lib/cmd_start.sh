@@ -26,10 +26,20 @@ cmd_start() {
     fi
 
     log_step "Starting Logos Node..."
-    docker_up
-
-    if [[ $? -ne 0 ]]; then
-        die "Failed to start node. Check 'logos-node logs' for details."
+    local start_output
+    if ! start_output="$(docker_up 2>&1)"; then
+        echo "$start_output"
+        if echo "$start_output" | grep -q "port is already allocated"; then
+            local conflict_port
+            conflict_port="$(echo "$start_output" | grep -oP 'Bind for \K[0-9.:]+' | head -1)" || true
+            echo ""
+            log_error "Port ${conflict_port:-} is already in use by another process."
+            log_info "Find what's using it:  ${BOLD}sudo lsof -i :${conflict_port:-${LOGOS_API_PORT}} | grep LISTEN${RESET}"
+            log_info "Or change the port:    ${BOLD}Edit LOGOS_API_PORT in $LOGOS_SETTINGS_FILE${RESET}"
+        else
+            log_error "Failed to start node. Check 'logos-node logs' for details."
+        fi
+        return 1
     fi
 
     log_success "Logos Node container started"
