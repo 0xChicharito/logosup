@@ -1,6 +1,26 @@
 #!/usr/bin/env bash
 # DESCRIPTION: Update the Logos Node and/or CLI tool
 
+# Show commit log and diff stats between two refs
+_show_cli_changes() {
+    local cli_dir="$1"
+    local from_ref="$2"
+    local to_ref="${3:-HEAD}"
+
+    # Skip if same commit
+    [[ "$from_ref" == "$(git -C "$cli_dir" rev-parse "$to_ref" 2>/dev/null)" ]] && return 0
+
+    local has_output=false
+    echo ""
+    git -C "$cli_dir" log --oneline "${from_ref}..${to_ref}" 2>/dev/null | while IFS= read -r line; do
+        echo -e "  ${GREEN}+${RESET} $line"
+    done
+    git -C "$cli_dir" diff --stat "${from_ref}..${to_ref}" 2>/dev/null | while IFS= read -r line; do
+        echo -e "  ${DIM}$line${RESET}"
+    done
+    echo ""
+}
+
 cmd_update() {
     detect_platform
     check_docker
@@ -71,20 +91,14 @@ cmd_update() {
                 if git -C "$cli_dir" checkout "$branch" --quiet 2>/dev/null; then
                     git -C "$cli_dir" pull --quiet 2>/dev/null || true
                     log_success "CLI switched to branch ${BOLD}${branch}${RESET}"
+                    _show_cli_changes "$cli_dir" "$before_sha"
                     cli_updated=true
                 else
                     die "Branch '${branch}' not found"
                 fi
             elif ! check_cli_update; then
                 log_info "CLI update available"
-                echo ""
-                git -C "$cli_dir" log --oneline HEAD..@{u} 2>/dev/null | while IFS= read -r line; do
-                    echo -e "  ${GREEN}+${RESET} $line"
-                done
-                git -C "$cli_dir" diff --stat HEAD..@{u} 2>/dev/null | while IFS= read -r line; do
-                    echo -e "  ${DIM}$line${RESET}"
-                done
-                echo ""
+                _show_cli_changes "$cli_dir" "HEAD" "@{u}"
                 if confirm "Update CLI tool?"; then
                     git -C "$cli_dir" pull --quiet
                     log_success "CLI updated"
