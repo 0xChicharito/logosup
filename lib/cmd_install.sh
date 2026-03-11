@@ -93,25 +93,18 @@ cmd_install() {
     log_info "After receiving tokens, your UTXO must age for ~3.5 hours (two epochs)"
     log_info "before your node can participate in consensus."
 
-    echo ""
-    print_separator
-    log_step "Installation complete!"
-    echo ""
-    log_info "Start your node:    ${BOLD}logos-node start${RESET}"
-    log_info "Check status:       ${BOLD}logos-node status${RESET}"
-    log_info "View logs:          ${BOLD}logos-node logs${RESET}"
-    log_info "View your keys:     ${BOLD}logos-node keys${RESET}"
-    log_info "Open faucet:        ${BOLD}logos-node faucet${RESET}"
-    log_info "Monitoring:         ${BOLD}logos-node monitor start${RESET}"
-    log_info "Grafana dashboard:  ${BOLD}http://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
-    echo ""
+    # ── Optional extras (before starting the node) ─────────────────────
 
-    if confirm "Start the node now?"; then
-        source "$LOGOS_NODE_LIB/cmd_start.sh"
-        cmd_start
+    # Security hardening (Linux only)
+    if [[ "$LOGOS_OS" == "linux" ]]; then
+        echo ""
+        if confirm "Run security hardening? (firewall, auto-updates, fail2ban)" "n"; then
+            source "$LOGOS_NODE_LIB/cmd_security.sh"
+            cmd_security apply
+        fi
     fi
 
-    # Only offer monitoring if not already running
+    # Monitoring dashboard
     source "$LOGOS_NODE_LIB/monitoring.sh"
     if monitoring_is_running; then
         log_info "Monitoring dashboard is running at ${BOLD}http://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
@@ -123,12 +116,23 @@ cmd_install() {
         fi
     fi
 
-    # Offer security hardening on Linux
-    if [[ "$(uname -s)" == "Linux" ]]; then
-        echo ""
-        if confirm "Run security hardening? (firewall, auto-updates, fail2ban)" "n"; then
-            source "$LOGOS_NODE_LIB/cmd_security.sh"
-            cmd_security apply
-        fi
+    # ── Summary & start ──────────────────────────────────────────────
+    echo ""
+    print_separator
+    log_step "Installation complete!"
+    echo ""
+    log_info "Start your node:    ${BOLD}logos-node start${RESET}"
+    log_info "Check status:       ${BOLD}logos-node status${RESET}"
+    log_info "View logs:          ${BOLD}logos-node logs${RESET}"
+    log_info "View your keys:     ${BOLD}logos-node keys${RESET}"
+    log_info "Open faucet:        ${BOLD}logos-node faucet${RESET}"
+    log_info "Monitoring:         ${BOLD}logos-node monitor start${RESET}"
+    log_info "Security:           ${BOLD}logos-node security${RESET}"
+    log_info "Grafana dashboard:  ${BOLD}http://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
+    echo ""
+
+    if confirm "Start the node now?"; then
+        source "$LOGOS_NODE_LIB/cmd_start.sh"
+        cmd_start
     fi
 }
