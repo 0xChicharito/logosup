@@ -93,6 +93,30 @@ cmd_install() {
     log_info "After receiving tokens, your UTXO must age for ~3.5 hours (two epochs)"
     log_info "before your node can participate in consensus."
 
+    # ── Optional extras (before starting the node) ─────────────────────
+
+    # Security hardening (Linux only)
+    if [[ "$LOGOS_OS" == "linux" ]]; then
+        echo ""
+        if confirm "Run security hardening? (firewall, auto-updates, fail2ban)" "n"; then
+            source "$LOGOS_NODE_LIB/cmd_security.sh"
+            cmd_security apply
+        fi
+    fi
+
+    # Monitoring dashboard
+    source "$LOGOS_NODE_LIB/monitoring.sh"
+    if monitoring_is_running; then
+        log_info "Monitoring dashboard is running at ${BOLD}http://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
+    else
+        echo ""
+        if confirm "Enable monitoring dashboard? (Grafana + Prometheus)" "n"; then
+            source "$LOGOS_NODE_LIB/cmd_monitor.sh"
+            cmd_monitor start
+        fi
+    fi
+
+    # ── Summary & start ──────────────────────────────────────────────
     echo ""
     print_separator
     log_step "Installation complete!"
@@ -103,23 +127,12 @@ cmd_install() {
     log_info "View your keys:     ${BOLD}logos-node keys${RESET}"
     log_info "Open faucet:        ${BOLD}logos-node faucet${RESET}"
     log_info "Monitoring:         ${BOLD}logos-node monitor start${RESET}"
+    log_info "Security:           ${BOLD}logos-node security${RESET}"
     log_info "Grafana dashboard:  ${BOLD}http://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
     echo ""
 
     if confirm "Start the node now?"; then
         source "$LOGOS_NODE_LIB/cmd_start.sh"
         cmd_start
-    fi
-
-    # Only offer monitoring if not already running
-    source "$LOGOS_NODE_LIB/monitoring.sh"
-    if monitoring_is_running; then
-        log_info "Monitoring dashboard is running at ${BOLD}http://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
-    else
-        echo ""
-        if confirm "Enable monitoring dashboard? (Grafana + Prometheus)" "n"; then
-            source "$LOGOS_NODE_LIB/cmd_monitor.sh"
-            cmd_monitor start
-        fi
     fi
 }

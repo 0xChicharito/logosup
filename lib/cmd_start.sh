@@ -25,11 +25,31 @@ cmd_start() {
         return 0
     fi
 
-    log_step "Starting Logos Node..."
-    docker_up
+    # Regenerate compose if port settings changed
+    if [[ -f "$compose_path" ]]; then
+        if ! grep -q "\"${LOGOS_API_PORT}:8080\"" "$compose_path" 2>/dev/null || \
+           ! grep -q "\"${LOGOS_UDP_PORT}:3000/udp\"" "$compose_path" 2>/dev/null; then
+            log_info "Port settings changed — regenerating docker-compose.yml"
+            generate_compose_file
+        fi
+    fi
 
-    if [[ $? -ne 0 ]]; then
-        die "Failed to start node. Check 'logos-node logs' for details."
+    log_step "Starting Logos Node..."
+    local start_output
+    if ! start_output="$(docker_up 2>&1)"; then
+        echo "$start_output"
+        if echo "$start_output" | grep -q "port is already allocated"; then
+            local conflict_port
+            conflict_port="$(echo "$start_output" | grep -oE 'Bind for [0-9.:]+' | head -1 | sed 's/Bind for //' | sed 's/.*://')" || true
+            echo ""
+            log_error "Port ${conflict_port:-} is already in use by another process."
+            log_info "Find what's using it:  ${BOLD}sudo lsof -i :${conflict_port:-${LOGOS_API_PORT}} | grep LISTEN${RESET}"
+            log_info "Or change the port:    ${BOLD}Edit LOGOS_API_PORT in $LOGOS_SETTINGS_FILE${RESET}"
+            log_info "Then regenerate:       ${BOLD}logos-node update node${RESET}"
+        else
+            log_error "Failed to start node. Check 'logos-node logs' for details."
+        fi
+        return 1
     fi
 
     log_success "Logos Node container started"
