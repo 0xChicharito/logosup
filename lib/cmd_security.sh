@@ -98,9 +98,9 @@ _add_finding() {
     local detail="$3"
 
     case "$status" in
-        pass) FINDINGS+=("${GREEN}✔${RESET}  ${label}: ${detail}"); ((PASS_COUNT++)) ;;
-        warn) FINDINGS+=("${YELLOW}⚠${RESET}  ${label}: ${detail}"); ((WARN_COUNT++)) ;;
-        fail) FINDINGS+=("${RED}✖${RESET}  ${label}: ${detail}"); ((FAIL_COUNT++)) ;;
+        pass) FINDINGS+=("${GREEN}✔${RESET}  ${label}: ${detail}"); PASS_COUNT=$((PASS_COUNT + 1)) ;;
+        warn) FINDINGS+=("${YELLOW}⚠${RESET}  ${label}: ${detail}"); WARN_COUNT=$((WARN_COUNT + 1)) ;;
+        fail) FINDINGS+=("${RED}✖${RESET}  ${label}: ${detail}"); FAIL_COUNT=$((FAIL_COUNT + 1)) ;;
     esac
 }
 
