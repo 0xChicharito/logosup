@@ -122,4 +122,13 @@ cmd_install() {
             cmd_monitor start
         fi
     fi
+
+    # Offer security hardening on Linux
+    if [[ "$(uname -s)" == "Linux" ]]; then
+        echo ""
+        if confirm "Run security hardening? (firewall, auto-updates, fail2ban)" "n"; then
+            source "$LOGOS_NODE_LIB/cmd_security.sh"
+            cmd_security apply
+        fi
+    fi
 }
