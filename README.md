@@ -14,7 +14,7 @@ curl -sL https://raw.githubusercontent.com/shayanb/logos-node/main/install.sh | 
 logos-node install
 ```
 
-The installer checks prerequisites, fetches the latest release, builds a Docker image with the node binary and ZK circuits, generates your configuration and wallet keys, and optionally starts the node.
+The installer checks prerequisites, fetches the latest release, builds a Docker image with the node binary and ZK circuits, generates your configuration and wallet keys, and optionally sets up security hardening, monitoring, and starts the node.
 
 ## Requirements
 
@@ -29,8 +29,8 @@ The installer detects missing prerequisites and offers to install them automatic
 | Command | Description |
 |---------|-------------|
 | `logos-node install` | Full setup — download, build, configure, generate keys |
-| `logos-node start` | Start the node container |
-| `logos-node stop` | Stop the node container |
+| `logos-node start` | Start the node (+ monitoring if enabled) |
+| `logos-node stop` | Stop the node and monitoring |
 | `logos-node status` | Show consensus state, peers, wallet balances |
 | `logos-node logs` | Tail node logs (`-f`, `--tail=N`, `--since=1h`) |
 | `logos-node update` | Update node and/or CLI (`update node`, `update cli`, `update all`, `-b BRANCH`) |
@@ -38,6 +38,8 @@ The installer detects missing prerequisites and offers to install them automatic
 | `logos-node faucet` | Show faucet URL and keys, open in browser |
 | `logos-node inscribe` | Publish text inscriptions to the blockchain (interactive or piped) |
 | `logos-node monitor` | Manage monitoring dashboard (`monitor start`, `monitor stop`, `monitor status`) |
+| `logos-node security` | Scan and harden server security (firewall, SSH, auto-updates, fail2ban) |
+| `logos-node version` | Show CLI and node versions |
 | `logos-node help` | Show help |
 
 Both `logos-node` and `logosnode` work as the command name.
@@ -67,7 +69,7 @@ Both `logos-node` and `logosnode` work as the command name.
 
 1. **`install.sh`** — checks prerequisites (Docker, git, curl), offers to install anything missing, handles Docker group permissions, clones this repo to `~/.logos-node/cli/`, and creates `logos-node`/`logosnode` symlinks in your PATH.
 
-2. **`logos-node install`** — fetches the latest release from the [Logos Blockchain releases](https://github.com/logos-blockchain/logos-blockchain/releases/), builds a Docker image containing the node binary and ZK circuit files, runs `logos-blockchain-node init` inside the container to generate `user_config.yaml` with fresh cryptographic keys and auto-detected public IP, then displays wallet keys with faucet instructions.
+2. **`logos-node install`** — fetches the latest release from the [Logos Blockchain releases](https://github.com/logos-blockchain/logos-blockchain/releases/), builds a Docker image containing the node binary and ZK circuit files, runs `logos-blockchain-node init` inside the container to generate `user_config.yaml` with fresh cryptographic keys and auto-detected public IP, displays wallet keys with faucet instructions, then optionally runs security hardening (firewall, SSH, auto-updates, fail2ban), monitoring setup, and starts the node.
 
 ### Docker setup
 
@@ -119,6 +121,27 @@ Grafana is available at `http://localhost:3001` (or your RPi's IP on port 3001).
 The monitoring stack runs as separate Docker containers alongside the node. You can also opt in during `logos-node install`.
 
 > **Upstream**: The Logos blockchain node is adding native Prometheus metrics ([#2012](https://github.com/logos-blockchain/logos-blockchain/pull/2012)) and Grafana dashboards ([#2227](https://github.com/logos-blockchain/logos-blockchain/pull/2227)). Once merged, our Prometheus config will automatically scrape the node's native `/metrics` endpoint alongside the custom exporter, unlocking deeper metrics for consensus, mempool, chainsync, and more.
+
+### Security hardening
+
+Harden your server with one command:
+
+```sh
+logos-node security          # Scan and report findings
+logos-node security apply    # Apply fixes interactively (confirms each step)
+```
+
+Checks and fixes:
+
+| Check | What it does |
+|-------|-------------|
+| **Firewall** | Install and enable UFW/firewalld with SSH + Node P2P ports. Optionally allow API and Grafana. |
+| **SSH hardening** | Disable root login, offer key-only auth (only when SSH keys exist — won't lock you out) |
+| **Auto security updates** | Enable unattended-upgrades (Debian/Ubuntu) or dnf-automatic (RHEL/Fedora) |
+| **fail2ban** | Install with sshd jail — blocks IPs after 5 failed attempts for 1 hour |
+| **File permissions** | Ensure node directory is restricted (700) |
+
+Supports Debian/Ubuntu/Raspbian, Fedora/RHEL/CentOS/Rocky, and Arch Linux. Also offered during `logos-node install`.
 
 ## Configuration
 
