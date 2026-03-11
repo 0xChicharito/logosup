@@ -80,6 +80,13 @@ cmd_update() {
         local cli_dir="$LOGOS_NODE_DIR/cli"
 
         if [[ -d "$cli_dir/.git" ]]; then
+            # Fix single-branch refspec from older installs (--depth 1 without --no-single-branch)
+            local current_refspec
+            current_refspec="$(git -C "$cli_dir" config remote.origin.fetch 2>/dev/null)" || true
+            if [[ "$current_refspec" != "+refs/heads/*:refs/remotes/origin/*" ]]; then
+                git -C "$cli_dir" config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
+            fi
+
             # Switch branch if requested
             if [[ -n "$branch" ]]; then
                 log_info "Switching to branch: ${BOLD}${branch}${RESET}"
