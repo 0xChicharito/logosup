@@ -1,6 +1,35 @@
 #!/usr/bin/env bash
 # DESCRIPTION: Update the Logos Node and/or CLI tool
 
+# Only rebuild monitoring if monitoring-related files changed
+_maybe_update_monitoring() {
+    local cli_dir="$1"
+    local before_sha="$2"
+    local monitoring_compose="$LOGOS_NODE_DIR/docker-compose.monitoring.yml"
+
+    [[ -f "$monitoring_compose" ]] || return 0
+
+    # Check if monitoring files changed (or always update on branch switch when no before_sha)
+    local monitoring_changed=false
+    if [[ -z "$before_sha" ]]; then
+        # Branch switch — check if compose needs regenerating
+        monitoring_changed=true
+    elif git -C "$cli_dir" diff --name-only "$before_sha" HEAD 2>/dev/null | grep -qE '^(monitoring/|lib/monitoring\.sh)'; then
+        monitoring_changed=true
+    fi
+
+    if [[ "$monitoring_changed" == "true" ]]; then
+        source "$LOGOS_NODE_LIB/monitoring.sh"
+        generate_monitoring_compose_file
+        if monitoring_is_running; then
+            log_step "Monitoring files changed — rebuilding..."
+            monitoring_build || log_warn "Monitoring build failed"
+            monitoring_up
+            log_success "Monitoring stack updated"
+        fi
+    fi
+}
+
 cmd_update() {
     detect_platform
     check_docker
@@ -59,18 +88,7 @@ cmd_update() {
                     git -C "$cli_dir" pull --quiet 2>/dev/null || true
                     log_success "CLI switched to branch ${BOLD}${branch}${RESET}"
 
-                    # Regenerate monitoring compose if monitoring is set up
-                    local monitoring_compose="$LOGOS_NODE_DIR/docker-compose.monitoring.yml"
-                    if [[ -f "$monitoring_compose" ]]; then
-                        source "$LOGOS_NODE_LIB/monitoring.sh"
-                        generate_monitoring_compose_file
-                        if monitoring_is_running; then
-                            log_step "Restarting monitoring stack..."
-                            monitoring_build || log_warn "Monitoring build failed"
-                            monitoring_up
-                            log_success "Monitoring stack updated"
-                        fi
-                    fi
+                    _maybe_update_monitoring "$cli_dir" ""
 
                     if docker_is_running; then
                         log_info "Restart the node to apply changes: ${BOLD}logos-node stop && logos-node start${RESET}"
@@ -90,21 +108,12 @@ cmd_update() {
                 done
                 echo ""
                 if confirm "Update CLI tool?"; then
+                    local before_sha
+                    before_sha="$(git -C "$cli_dir" rev-parse HEAD 2>/dev/null)"
                     git -C "$cli_dir" pull --quiet
                     log_success "CLI updated"
 
-                    # Regenerate monitoring compose if monitoring is set up
-                    local monitoring_compose="$LOGOS_NODE_DIR/docker-compose.monitoring.yml"
-                    if [[ -f "$monitoring_compose" ]]; then
-                        source "$LOGOS_NODE_LIB/monitoring.sh"
-                        generate_monitoring_compose_file
-                        if monitoring_is_running; then
-                            log_step "Restarting monitoring stack..."
-                            monitoring_build || log_warn "Monitoring build failed"
-                            monitoring_up
-                            log_success "Monitoring stack updated"
-                        fi
-                    fi
+                    _maybe_update_monitoring "$cli_dir" "$before_sha"
 
                     if docker_is_running; then
                         log_info "Restart the node to apply changes: ${BOLD}logos-node stop && logos-node start${RESET}"
