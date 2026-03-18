@@ -104,5 +104,8 @@ cmd_status() {
     print_separator
     log_info "Dashboard: ${BOLD}${LOGOS_DASHBOARD_URL}${RESET}"
     log_info "Faucet:    ${BOLD}${LOGOS_FAUCET_URL}${RESET}"
+    if [[ -f "$LOGOS_NODE_DIR/docker-compose.monitoring.yml" ]]; then
+        log_info "Grafana:   ${BOLD}http://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
+    fi
     echo ""
 }
