@@ -82,13 +82,9 @@ cmd_update() {
                     die "Branch '${branch}' not found"
                 fi
             elif ! check_cli_update; then
-                log_info "CLI update available"
-                echo ""
-                if confirm "Update CLI tool?"; then
-                    git -C "$cli_dir" pull
-                    log_success "CLI updated"
-                    cli_updated=true
-                fi
+                git -C "$cli_dir" pull
+                log_success "CLI updated"
+                cli_updated=true
             else
                 log_success "CLI is up to date"
             fi
