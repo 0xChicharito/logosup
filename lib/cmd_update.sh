@@ -71,6 +71,12 @@ cmd_update() {
                 if git -C "$cli_dir" checkout "$branch" --quiet 2>/dev/null; then
                     git -C "$cli_dir" pull 2>/dev/null || true
                     log_success "CLI switched to branch ${BOLD}${branch}${RESET}"
+                    # Show what changed between old and new branch
+                    local after_sha
+                    after_sha="$(git -C "$cli_dir" rev-parse HEAD 2>/dev/null)"
+                    if [[ "$before_sha" != "$after_sha" ]]; then
+                        git -C "$cli_dir" diff --stat "$before_sha" "$after_sha" 2>/dev/null
+                    fi
                     cli_updated=true
                 else
                     die "Branch '${branch}' not found"
