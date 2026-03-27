@@ -107,10 +107,16 @@ cmd_install() {
     # Monitoring dashboard
     source "$LOGOS_NODE_LIB/monitoring.sh"
     if monitoring_is_running; then
-        log_info "Monitoring dashboard is running at ${BOLD}http://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
+        log_info "Monitoring dashboard is running at ${BOLD}https://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
     else
         echo ""
         if confirm "Enable monitoring dashboard? (Grafana + Prometheus)" "n"; then
+            # Ask about auth before starting
+            echo ""
+            if confirm "Require login for Grafana? (recommended if exposed to network)" "n"; then
+                source "$LOGOS_NODE_LIB/cmd_monitor.sh"
+                _monitor_auth_enable
+            fi
             source "$LOGOS_NODE_LIB/cmd_monitor.sh"
             cmd_monitor start
         fi
@@ -128,7 +134,7 @@ cmd_install() {
     log_info "Open faucet:        ${BOLD}logos-node faucet${RESET}"
     log_info "Monitoring:         ${BOLD}logos-node monitor start${RESET}"
     log_info "Security:           ${BOLD}logos-node security${RESET}"
-    log_info "Grafana dashboard:  ${BOLD}http://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
+    log_info "Grafana dashboard:  ${BOLD}https://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
     echo ""
 
     if confirm "Start the node now?"; then

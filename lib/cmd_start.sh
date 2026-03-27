@@ -77,7 +77,7 @@ cmd_start() {
         if ! monitoring_is_running; then
             log_step "Starting monitoring stack..."
             monitoring_up
-            log_success "Monitoring running at ${BOLD}http://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
+            log_success "Monitoring running at ${BOLD}https://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
         fi
     fi
 }

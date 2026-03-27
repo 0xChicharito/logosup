@@ -136,7 +136,7 @@
       "title": "Wallet Balance",
       "type": "timeseries",
       "targets": [{ "expr": "logos_node_wallet_balance", "legendFormat": "{{key}}", "refId": "A" }]
-    },
+    }
   ],
   "refresh": "15s",
   "schemaVersion": 39,

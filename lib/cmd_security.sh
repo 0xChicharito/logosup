@@ -116,18 +116,31 @@ _check_firewall() {
             # Check if our ports are allowed
             local missing_ports=()
             if ! echo "$status" | grep -q "22/tcp"; then
-                # Check for "22 " as well (ufw sometimes shows without /tcp)
                 if ! echo "$status" | grep -q "22 "; then
                     missing_ports+=("22/tcp (SSH)")
                 fi
             fi
-            if ! echo "$status" | grep -q "3000/udp"; then
-                missing_ports+=("3000/udp (Node P2P)")
+            if ! echo "$status" | grep -q "${LOGOS_UDP_PORT}/udp"; then
+                missing_ports+=("${LOGOS_UDP_PORT}/udp (Node P2P)")
+            fi
+            # Check service ports if those services are running
+            if docker_is_running 2>/dev/null; then
+                if ! echo "$status" | grep -q "${LOGOS_API_PORT}"; then
+                    missing_ports+=("${LOGOS_API_PORT}/tcp (Node API)")
+                fi
+            fi
+            if [[ -f "$LOGOS_NODE_DIR/docker-compose.monitoring.yml" ]]; then
+                source "$LOGOS_NODE_LIB/monitoring.sh" 2>/dev/null || true
+                if monitoring_is_running 2>/dev/null; then
+                    if ! echo "$status" | grep -q "${LOGOS_GRAFANA_PORT}"; then
+                        missing_ports+=("${LOGOS_GRAFANA_PORT}/tcp (Grafana)")
+                    fi
+                fi
             fi
             if [[ ${#missing_ports[@]} -gt 0 ]]; then
                 _add_finding "warn" "Firewall ports" "missing: ${missing_ports[*]}"
             else
-                _add_finding "pass" "Firewall ports" "SSH and Node P2P allowed"
+                _add_finding "pass" "Firewall ports" "all required ports allowed"
             fi
         else
             _add_finding "fail" "Firewall (UFW)" "installed but inactive"
@@ -556,20 +569,38 @@ _apply_firewall_ports() {
     local status
     status="$(sudo ufw status 2>/dev/null)" || return 0
 
-    local missing=false
+    # Core ports
+    local missing_core=false
     if ! echo "$status" | grep -q "22"; then
-        missing=true
+        missing_core=true
     fi
     if ! echo "$status" | grep -q "${LOGOS_UDP_PORT}/udp"; then
-        missing=true
+        missing_core=true
     fi
 
-    if [[ "$missing" == "true" ]]; then
+    if [[ "$missing_core" == "true" ]]; then
         if confirm "Add missing firewall rules for SSH and Node P2P?"; then
             sudo ufw allow 22/tcp comment "SSH"
             sudo ufw allow "${LOGOS_UDP_PORT}/udp" comment "Logos Node P2P"
-            log_success "Firewall rules updated"
+            log_success "Core firewall rules updated"
         fi
+    fi
+
+    # Service ports — check running services and offer to open their ports
+    if docker_is_running 2>/dev/null && ! echo "$status" | grep -q "${LOGOS_API_PORT}"; then
+        _ask_optional_port "Node API" "${LOGOS_API_PORT}" "tcp" "Node is running but API port is blocked from network"
+    fi
+
+    if [[ -f "$LOGOS_NODE_DIR/docker-compose.monitoring.yml" ]]; then
+        source "$LOGOS_NODE_LIB/monitoring.sh" 2>/dev/null || true
+        if monitoring_is_running 2>/dev/null && ! echo "$status" | grep -q "${LOGOS_GRAFANA_PORT}"; then
+            _ask_optional_port "Grafana" "${LOGOS_GRAFANA_PORT}" "tcp" "Monitoring is running but Grafana port is blocked from network"
+        fi
+    fi
+
+    if [[ ${#OPTIONAL_PORTS[@]} -gt 0 ]]; then
+        _apply_optional_ports
+        log_success "Service firewall rules updated"
     fi
 }
 
