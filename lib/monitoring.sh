@@ -47,7 +47,9 @@ generate_monitoring_compose_file() {
     host_uid="$(id -u)"
     host_gid="$(id -g)"
 
-    # Resolve auth settings
+    # Resolve auth settings (defaults for older installs that lack these in settings.env)
+    : "${LOGOS_GRAFANA_AUTH:=false}"
+    : "${LOGOS_GRAFANA_PASSWORD:=logos}"
     local grafana_anon_enabled="true"
     if [[ "${LOGOS_GRAFANA_AUTH}" == "true" ]]; then
         grafana_anon_enabled="false"
