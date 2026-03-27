@@ -220,11 +220,13 @@ _monitor_restart_if_running() {
     if monitoring_is_running; then
         echo ""
         log_info "Applying changes..."
-        # Regenerate compose with new auth settings
+        # Regenerate compose and force-recreate Grafana so new env vars take effect
         generate_monitoring_compose_file
-        monitoring_up
+        local compose_path
+        compose_path="$(get_monitoring_compose_path)"
+        COMPOSE_IGNORE_ORPHANS=true $DOCKER_COMPOSE -f "$compose_path" up -d --force-recreate logos-grafana
         # Reset password inside running Grafana (env vars only apply on first boot)
-        sleep 2
+        sleep 3
         $DOCKER_CMD exec logos-grafana grafana cli admin reset-admin-password "$LOGOS_GRAFANA_PASSWORD" &>/dev/null || true
         log_success "Monitoring stack restarted"
     else
