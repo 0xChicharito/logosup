@@ -163,8 +163,25 @@ _monitor_auth() {
 _monitor_auth_enable() {
     echo ""
     log_step "Set Grafana password"
-    log_info "Username will be: ${BOLD}admin${RESET}"
+    log_info "Username: ${BOLD}admin${RESET}"
     echo ""
+
+    # Check if a password is already set
+    local existing_password=""
+    existing_password="$(grep '^LOGOS_GRAFANA_PASSWORD=' "$LOGOS_SETTINGS_FILE" 2>/dev/null | cut -d= -f2)" || true
+
+    if [[ -n "$existing_password" && "$existing_password" != "logos" ]]; then
+        log_info "A password is already configured."
+        if ! confirm "Replace existing password?"; then
+            # Keep existing password, just ensure auth is enabled
+            save_setting "LOGOS_GRAFANA_AUTH" "true"
+            export LOGOS_GRAFANA_AUTH="true"
+            export LOGOS_GRAFANA_PASSWORD="$existing_password"
+            log_success "Authentication enabled — login: ${BOLD}admin${RESET} / (existing password)"
+            _monitor_restart_if_running
+            return 0
+        fi
+    fi
 
     local password=""
     local password_confirm=""
@@ -200,7 +217,7 @@ _monitor_auth_enable() {
     export LOGOS_GRAFANA_AUTH="true"
     export LOGOS_GRAFANA_PASSWORD="$password"
 
-    log_success "Authentication enabled (admin / ****)"
+    log_success "Authentication enabled — login: ${BOLD}admin${RESET} / (your password)"
 
     _monitor_restart_if_running
 }
