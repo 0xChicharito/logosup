@@ -23,8 +23,25 @@ generate_monitoring_compose_file() {
     # Create data directories
     mkdir -p "$LOGOS_NODE_DIR/monitoring/prometheus-data"
     mkdir -p "$LOGOS_NODE_DIR/monitoring/grafana-data"
+    mkdir -p "$LOGOS_NODE_DIR/monitoring/certs"
     # Grafana runs as UID 472 inside the container
     chmod 777 "$LOGOS_NODE_DIR/monitoring/grafana-data"
+
+    # Generate self-signed SSL certificate if it doesn't exist
+    if [[ ! -f "$LOGOS_NODE_DIR/monitoring/certs/grafana.crt" ]]; then
+        log_step "Generating self-signed SSL certificate for Grafana..."
+        openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout "$LOGOS_NODE_DIR/monitoring/certs/grafana.key" \
+            -out "$LOGOS_NODE_DIR/monitoring/certs/grafana.crt" \
+            -days 3650 \
+            -subj "/CN=logos-node/O=Logos Node" \
+            -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" \
+            2>/dev/null
+        # Grafana container runs as UID 472
+        chmod 644 "$LOGOS_NODE_DIR/monitoring/certs/grafana.crt"
+        chmod 644 "$LOGOS_NODE_DIR/monitoring/certs/grafana.key"
+        log_success "SSL certificate generated (valid for 10 years)"
+    fi
 
     local host_uid host_gid
     host_uid="$(id -u)"
@@ -82,11 +99,15 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=logos
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_SERVER_PROTOCOL=https
+      - GF_SERVER_CERT_FILE=/etc/grafana/certs/grafana.crt
+      - GF_SERVER_CERT_KEY=/etc/grafana/certs/grafana.key
     volumes:
       - ${monitoring_dir}/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
       - ${monitoring_dir}/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ${monitoring_dir}/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - ${LOGOS_NODE_DIR}/monitoring/grafana-data:/var/lib/grafana
+      - ${LOGOS_NODE_DIR}/monitoring/certs:/etc/grafana/certs:ro
     networks:
       - logos-net
 

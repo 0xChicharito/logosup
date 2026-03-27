@@ -108,7 +108,8 @@ cmd_status() {
         local grafana_host
         grafana_host="$(hostname -I 2>/dev/null | awk '{print $1}')" || true
         grafana_host="${grafana_host:-localhost}"
-        log_info "Grafana:   ${BOLD}http://${grafana_host}:${LOGOS_GRAFANA_PORT}${RESET}"
+        log_info "Grafana:   ${BOLD}https://${grafana_host}:${LOGOS_GRAFANA_PORT}${RESET}"
+        log_dim "Self-signed cert — accept the browser warning on first visit"
     fi
     echo ""
 }

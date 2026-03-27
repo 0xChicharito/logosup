@@ -43,7 +43,7 @@ _monitor_help() {
     log_info "  stop     Stop the monitoring stack"
     log_info "  status   Show monitoring status and Grafana URL"
     echo ""
-    log_info "Grafana will be available at ${BOLD}http://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
+    log_info "Grafana will be available at ${BOLD}https://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
     log_info "Default credentials: admin / logos"
     echo ""
 }
@@ -64,8 +64,9 @@ _monitor_start() {
     echo ""
     log_success "Monitoring stack started"
     echo ""
-    log_info "Grafana: ${BOLD}http://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
+    log_info "Grafana: ${BOLD}https://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
     log_info "No login required to view dashboards"
+    log_dim "Self-signed cert — accept the browser warning on first visit"
     echo ""
     log_info "Stop with: ${BOLD}logos-node monitor stop${RESET}"
     echo ""
@@ -103,7 +104,7 @@ _monitor_status() {
 
     echo ""
     if [[ "$all_running" == "true" ]]; then
-        log_info "Grafana: ${BOLD}http://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
+        log_info "Grafana: ${BOLD}https://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
     else
         log_info "Start with: ${BOLD}logos-node monitor start${RESET}"
     fi
