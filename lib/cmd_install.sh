@@ -111,6 +111,12 @@ cmd_install() {
     else
         echo ""
         if confirm "Enable monitoring dashboard? (Grafana + Prometheus)" "n"; then
+            # Ask about auth before starting
+            echo ""
+            if confirm "Require login for Grafana? (recommended if exposed to network)" "n"; then
+                source "$LOGOS_NODE_LIB/cmd_monitor.sh"
+                _monitor_auth_enable
+            fi
             source "$LOGOS_NODE_LIB/cmd_monitor.sh"
             cmd_monitor start
         fi

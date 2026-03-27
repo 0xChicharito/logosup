@@ -20,6 +20,9 @@ cmd_monitor() {
         status)
             _monitor_status
             ;;
+        auth)
+            _monitor_auth "$@"
+            ;;
         -h|--help|help)
             _monitor_help
             ;;
@@ -36,15 +39,20 @@ _monitor_help() {
     log_step "Monitoring dashboard management"
     echo ""
     log_info "${BOLD}Usage:${RESET}"
-    log_info "  logos-node monitor [start|stop|status]"
+    log_info "  logos-node monitor [start|stop|status|auth]"
     echo ""
     log_info "${BOLD}Commands:${RESET}"
     log_info "  start    Start the monitoring stack (Grafana + Prometheus + exporter)"
     log_info "  stop     Stop the monitoring stack"
     log_info "  status   Show monitoring status and Grafana URL"
+    log_info "  auth     Enable or disable Grafana login (set password)"
     echo ""
     log_info "Grafana will be available at ${BOLD}https://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
-    log_info "Default credentials: admin / logos"
+    if [[ "${LOGOS_GRAFANA_AUTH}" == "true" ]]; then
+        log_info "Login: admin / ${BOLD}(your password)${RESET}"
+    else
+        log_info "No login required (anonymous access enabled)"
+    fi
     echo ""
 }
 
@@ -65,7 +73,11 @@ _monitor_start() {
     log_success "Monitoring stack started"
     echo ""
     log_info "Grafana: ${BOLD}https://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
-    log_info "No login required to view dashboards"
+    if [[ "${LOGOS_GRAFANA_AUTH}" == "true" ]]; then
+        log_info "Login: admin / ${BOLD}(your password)${RESET}"
+    else
+        log_info "No login required to view dashboards"
+    fi
     log_dim "Self-signed cert — accept the browser warning on first visit"
     echo ""
     log_info "Stop with: ${BOLD}logos-node monitor stop${RESET}"
@@ -109,4 +121,110 @@ _monitor_status() {
         log_info "Start with: ${BOLD}logos-node monitor start${RESET}"
     fi
     echo ""
+}
+
+_monitor_auth() {
+    local action="${1:-}"
+
+    case "$action" in
+        on|enable)
+            _monitor_auth_enable
+            ;;
+        off|disable)
+            _monitor_auth_disable
+            ;;
+        "")
+            # Interactive — toggle based on current state
+            if [[ "${LOGOS_GRAFANA_AUTH}" == "true" ]]; then
+                log_info "Grafana authentication is currently ${BOLD}enabled${RESET}"
+                echo ""
+                if confirm "Disable authentication (allow anonymous access)?" "n"; then
+                    _monitor_auth_disable
+                else
+                    log_info "Change password? Run: ${BOLD}logos-node monitor auth on${RESET}"
+                fi
+            else
+                log_info "Grafana authentication is currently ${BOLD}disabled${RESET} (anonymous access)"
+                echo ""
+                if confirm "Enable authentication (require login)?"; then
+                    _monitor_auth_enable
+                fi
+            fi
+            ;;
+        *)
+            log_info "${BOLD}Usage:${RESET}"
+            log_info "  logos-node monitor auth          Toggle authentication (interactive)"
+            log_info "  logos-node monitor auth on        Enable auth and set password"
+            log_info "  logos-node monitor auth off       Disable auth (anonymous access)"
+            ;;
+    esac
+}
+
+_monitor_auth_enable() {
+    echo ""
+    log_step "Set Grafana password"
+    log_info "Username will be: ${BOLD}admin${RESET}"
+    echo ""
+
+    local password=""
+    local password_confirm=""
+
+    while true; do
+        echo -en "${BOLD}?${RESET} Enter password: "
+        read -rs password < /dev/tty 2>/dev/null || password=""
+        echo ""
+
+        if [[ -z "$password" ]]; then
+            log_warn "Password cannot be empty"
+            continue
+        fi
+        if [[ ${#password} -lt 4 ]]; then
+            log_warn "Password must be at least 4 characters"
+            continue
+        fi
+
+        echo -en "${BOLD}?${RESET} Confirm password: "
+        read -rs password_confirm < /dev/tty 2>/dev/null || password_confirm=""
+        echo ""
+
+        if [[ "$password" != "$password_confirm" ]]; then
+            log_warn "Passwords do not match"
+            continue
+        fi
+
+        break
+    done
+
+    save_setting "LOGOS_GRAFANA_AUTH" "true"
+    save_setting "LOGOS_GRAFANA_PASSWORD" "$password"
+    export LOGOS_GRAFANA_AUTH="true"
+    export LOGOS_GRAFANA_PASSWORD="$password"
+
+    log_success "Authentication enabled (admin / ****)"
+
+    _monitor_restart_if_running
+}
+
+_monitor_auth_disable() {
+    save_setting "LOGOS_GRAFANA_AUTH" "false"
+    save_setting "LOGOS_GRAFANA_PASSWORD" "logos"
+    export LOGOS_GRAFANA_AUTH="false"
+    export LOGOS_GRAFANA_PASSWORD="logos"
+
+    log_success "Authentication disabled — anonymous access enabled"
+
+    _monitor_restart_if_running
+}
+
+_monitor_restart_if_running() {
+    if monitoring_is_running; then
+        echo ""
+        log_info "Applying changes..."
+        # Regenerate compose with new auth settings
+        generate_monitoring_compose_file
+        monitoring_up
+        log_success "Monitoring stack restarted"
+    else
+        log_info "Changes will apply on next: ${BOLD}logos-node monitor start${RESET}"
+    fi
 }

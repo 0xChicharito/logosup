@@ -47,6 +47,12 @@ generate_monitoring_compose_file() {
     host_uid="$(id -u)"
     host_gid="$(id -g)"
 
+    # Resolve auth settings
+    local grafana_anon_enabled="true"
+    if [[ "${LOGOS_GRAFANA_AUTH}" == "true" ]]; then
+        grafana_anon_enabled="false"
+    fi
+
     log_step "Generating monitoring compose file..."
 
     cat > "$compose_path" << COMPOSE
@@ -96,8 +102,8 @@ services:
       - "${LOGOS_GRAFANA_PORT}:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=logos
-      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_SECURITY_ADMIN_PASSWORD=${LOGOS_GRAFANA_PASSWORD}
+      - GF_AUTH_ANONYMOUS_ENABLED=${grafana_anon_enabled}
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
       - GF_SERVER_PROTOCOL=https
       - GF_SERVER_CERT_FILE=/etc/grafana/certs/grafana.crt
