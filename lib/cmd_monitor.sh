@@ -223,6 +223,9 @@ _monitor_restart_if_running() {
         # Regenerate compose with new auth settings
         generate_monitoring_compose_file
         monitoring_up
+        # Reset password inside running Grafana (env vars only apply on first boot)
+        sleep 2
+        $DOCKER_CMD exec logos-grafana grafana cli admin reset-admin-password "$LOGOS_GRAFANA_PASSWORD" &>/dev/null || true
         log_success "Monitoring stack restarted"
     else
         log_info "Changes will apply on next: ${BOLD}logos-node monitor start${RESET}"
