@@ -72,7 +72,10 @@ _monitor_start() {
     echo ""
     log_success "Monitoring stack started"
     echo ""
-    log_info "Grafana: ${BOLD}https://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
+    local grafana_host
+    grafana_host="$(hostname -I 2>/dev/null | awk '{print $1}')" || true
+    grafana_host="${grafana_host:-localhost}"
+    log_info "Grafana: ${BOLD}https://${grafana_host}:${LOGOS_GRAFANA_PORT}${RESET}"
     if [[ "${LOGOS_GRAFANA_AUTH}" == "true" ]]; then
         log_info "Login: admin / ${BOLD}(your password)${RESET}"
     else
@@ -116,7 +119,10 @@ _monitor_status() {
 
     echo ""
     if [[ "$all_running" == "true" ]]; then
-        log_info "Grafana: ${BOLD}https://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
+        local grafana_host
+        grafana_host="$(hostname -I 2>/dev/null | awk '{print $1}')" || true
+        grafana_host="${grafana_host:-localhost}"
+        log_info "Grafana: ${BOLD}https://${grafana_host}:${LOGOS_GRAFANA_PORT}${RESET}"
     else
         log_info "Start with: ${BOLD}logos-node monitor start${RESET}"
     fi

@@ -77,9 +77,15 @@ cmd_start() {
         if ! monitoring_is_running; then
             log_step "Starting monitoring stack..."
             monitoring_up
-            log_success "Monitoring running at ${BOLD}https://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
+            local grafana_host
+            grafana_host="$(hostname -I 2>/dev/null | awk '{print $1}')" || true
+            grafana_host="${grafana_host:-localhost}"
+            log_success "Monitoring running at ${BOLD}https://${grafana_host}:${LOGOS_GRAFANA_PORT}${RESET}"
         fi
     fi
+
+    echo ""
+    log_info "Check node status: ${BOLD}logos-node status${RESET}"
 }
 
 _show_brief_status() {
