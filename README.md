@@ -145,11 +145,30 @@ Grafana is available at `https://localhost:3001` (or your server's IP on port 30
 └── grafana.key    # Private key
 ```
 
-Your browser will show a security warning on the first visit — this is expected, just accept it to proceed. To regenerate the certificate, delete the files above and restart monitoring. No login required to view dashboards — they are pre-provisioned with panels for consensus state, peer count, wallet balance, and container resource usage.
+Your browser will show a security warning on the first visit — this is expected, just accept it to proceed. To regenerate the certificate, delete the files above and restart monitoring.
 
-The monitoring stack runs as separate Docker containers alongside the node. You can also opt in during `logos-node install`.
+Two dashboards are provisioned:
 
-> **Upstream**: The Logos blockchain node is adding native Prometheus metrics ([#2012](https://github.com/logos-blockchain/logos-blockchain/pull/2012)) and Grafana dashboards ([#2227](https://github.com/logos-blockchain/logos-blockchain/pull/2227)). Once merged, our Prometheus config will automatically scrape the node's native `/metrics` endpoint alongside the custom exporter, unlocking deeper metrics for consensus, mempool, chainsync, and more.
+- **Logos Node** (Overview) — at-a-glance status: consensus mode, slot/height, peers, container health, wallet balances.
+- **Logos Node — Deep Dive** — native node metrics organized by service: consensus (block apply latency, proposals, fork count, finalized height), mempool (pending/added/removed), chainsync (request latency, downloads), orphans, blend (peers, message rates), KMS (sign requests/successes/failures), SDP (declarations, withdrawals), HTTP API and storage latency.
+
+Use the "Deep Dive" link in the top-right of the Overview dashboard to switch between them. No login required by default — enable with `logos-node monitor auth on`.
+
+#### Architecture
+
+The monitoring stack runs as separate Docker containers alongside the node:
+
+```
+logos-node ──OTLP/4317──▶ logos-otel ──:8889──▶ logos-prometheus ──▶ logos-grafana
+                                                       ▲
+logos-exporter (Python: container/host stats, wallet balances) ─────┘
+```
+
+- **logos-otel** (OpenTelemetry Collector) receives native metrics the node pushes via OTLP and re-exposes them in Prometheus format.
+- **logos-exporter** (Python) covers what the node doesn't emit natively: container CPU/memory/network, host stats, wallet balances.
+- **logos-prometheus** scrapes both, **logos-grafana** visualizes.
+
+Native OTLP push is enabled automatically in `user_config.yaml` (`tracing.metrics: !Otlp`) by `logos-node install` / `logos-node reset`. If you've customized that field, your value is preserved.
 
 ### Security hardening
 

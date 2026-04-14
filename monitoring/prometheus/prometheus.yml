@@ -3,13 +3,14 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
+  # Container/host stats and wallet balances (things the node doesn't emit natively).
   - job_name: 'logos-exporter'
     static_configs:
       - targets: ['logos-exporter:9100']
 
-  # Native node metrics (available once upstream PR #2012 is merged)
-  # Fails gracefully until the /metrics endpoint exists
-  - job_name: 'logos-node'
-    metrics_path: /metrics
+  # Native node metrics — node pushes OTLP to logos-otel which re-exposes
+  # them in Prometheus format on :8889. Requires `tracing.metrics: !Otlp`
+  # in user_config.yaml (set automatically by `logos-node install` / `reset`).
+  - job_name: 'logos-node-otel'
     static_configs:
-      - targets: ['logos-node:8080']
+      - targets: ['logos-otel:8889']

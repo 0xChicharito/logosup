@@ -79,6 +79,20 @@ services:
     networks:
       - logos-net
 
+  logos-otel:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: logos-otel
+    restart: unless-stopped
+    command: ["--config=/etc/otel/otel.yaml"]
+    volumes:
+      - ${monitoring_dir}/otel/otel.yaml:/etc/otel/otel.yaml:ro
+    expose:
+      - "4317"  # OTLP gRPC (node pushes here)
+      - "4318"  # OTLP HTTP
+      - "8889"  # Prometheus scrape
+    networks:
+      - logos-net
+
   logos-prometheus:
     image: prom/prometheus:latest
     container_name: logos-prometheus
