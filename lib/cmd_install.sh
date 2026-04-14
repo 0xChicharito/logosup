@@ -83,7 +83,7 @@ cmd_install() {
     fi
 
     echo ""
-    log_step "Request devnet tokens"
+    log_step "Request testnet tokens"
     log_info "Visit the faucet to receive test tokens:"
     log_info "  ${BOLD}${LOGOS_FAUCET_URL}${RESET}"
     log_info ""

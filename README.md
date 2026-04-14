@@ -106,9 +106,9 @@ The node runs inside a Docker container based on `debian:trixie-slim` (glibc 2.3
 
 ### After install
 
-1. **Get devnet tokens** — run `logos-node faucet` to see your wallet keys and the faucet URL. Visit the [devnet faucet](https://devnet.blockchain.logos.co/web/faucet/), paste one of your keys, and request funds.
+1. **Get testnet tokens** — run `logos-node faucet` to see your wallet keys and the faucet URL. Visit the [testnet faucet](https://testnet.blockchain.logos.co/web/faucet/), paste one of your keys, and request funds.
 2. **Wait for UTXO maturity** — tokens must age approximately 3.5 hours (two epochs) before your node can participate in the consensus lottery.
-3. **Monitor** — use `logos-node status` to check consensus mode (Bootstrapping → Online), peer count, and wallet balances. Compare against the [devnet dashboard](https://devnet.blockchain.logos.co/web/).
+3. **Monitor** — use `logos-node status` to check consensus mode (Bootstrapping → Online), peer count, and wallet balances. Compare against the [testnet dashboard](https://testnet.blockchain.logos.co/web/).
 
 ### Inscribing text
 
@@ -191,10 +191,10 @@ All configuration lives in `~/.logos-node/` (override with `LOGOS_NODE_DIR` env 
 
 ### Network config (`network.yml`)
 
-Network-specific settings (bootstrap peers, ports, URLs) are defined in `network.yml` in the repository root. To switch networks (e.g., from devnet to a future testnet), swap this file:
+Network-specific settings (bootstrap peers, ports, URLs) are defined in `network.yml` in the repository root. To switch networks (e.g., from testnet to mainnet), swap this file:
 
 ```yaml
-network: devnet
+network: testnet
 
 bootstrap_peers:
   - /ip4/65.109.51.37/udp/3000/quic-v1/p2p/12D3KooW...
@@ -202,8 +202,8 @@ bootstrap_peers:
 
 api_port: 8080
 udp_port: 3000
-faucet_url: https://devnet.blockchain.logos.co/web/faucet/
-dashboard_url: https://devnet.blockchain.logos.co/web/
+faucet_url: https://testnet.blockchain.logos.co/web/faucet/
+dashboard_url: https://testnet.blockchain.logos.co/web/
 ```
 
 ### User settings (`settings.env`)
@@ -254,8 +254,8 @@ logos-node/
 
 - [Logos Blockchain quickstart guide](https://github.com/logos-co/logos-docs/blob/main/docs/blockchain/quickstart-guide-for-the-logos-blockchain-node.md)
 - [Logos Blockchain releases](https://github.com/logos-blockchain/logos-blockchain/releases/)
-- [Devnet faucet](https://devnet.blockchain.logos.co/web/faucet/)
-- [Devnet dashboard](https://devnet.blockchain.logos.co/web/)
+- [Testnet faucet](https://testnet.blockchain.logos.co/web/faucet/)
+- [Testnet dashboard](https://testnet.blockchain.logos.co/web/)
 - [Logos website](https://logos.co/)
 
 ## License

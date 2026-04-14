@@ -60,18 +60,21 @@ _yml_get() {
 # ── Defaults ──────────────────────────────────────────────────────────
 
 _set_defaults() {
-    : "${LOGOS_NETWORK:=devnet}"
+    : "${LOGOS_NETWORK:=testnet}"
     : "${LOGOS_NODE_VERSION:=latest}"
     : "${LOGOS_CIRCUITS_VERSION:=latest}"
     : "${LOGOS_API_PORT:=8080}"
     : "${LOGOS_UDP_PORT:=3000}"
-    : "${LOGOS_FAUCET_URL:=https://devnet.blockchain.logos.co/web/faucet/}"
-    : "${LOGOS_DASHBOARD_URL:=https://devnet.blockchain.logos.co/web/}"
+    : "${LOGOS_FAUCET_URL:=https://testnet.blockchain.logos.co/web/faucet/}"
+    : "${LOGOS_DASHBOARD_URL:=https://testnet.blockchain.logos.co/web/}"
     : "${LOGOS_DOCKER_IMAGE:=logos-node}"
     : "${LOGOS_CONTAINER_NAME:=logos-node}"
     : "${LOGOS_NODE_REPO:=logos-blockchain/logos-blockchain}"
     : "${LOGOS_CLI_REPO:=shayanb/logos-node}"
-    : "${LOGOS_BOOTSTRAP_PEERS:=/ip4/65.109.51.37/udp/3000/quic-v1/p2p/12D3KooWL7a8LBbLRYnabptHPFBCmAs49Y7cVMqvzuSdd43tAJk8,/ip4/65.109.51.37/udp/3001/quic-v1/p2p/12D3KooWPLeAcachoUm68NXGD7tmNziZkVeMmeBS5NofyukuMRJh,/ip4/65.109.51.37/udp/3002/quic-v1/p2p/12D3KooWKFNe4gS5DcCcRUVGdMjZp3fUWu6q6gG5R846Ui1pccHD,/ip4/65.109.51.37/udp/3003/quic-v1/p2p/12D3KooWAnriLgXyQnGTYz1zPWPkQL3rthTKYLzuAP7MMnbgsxzR}"
+    # Bootstrap peers for the current testnet release. Update these whenever the
+    # network rotates peer IDs (e.g. on a breaking-genesis release).
+    # Source: https://github.com/logos-blockchain/logos-blockchain/releases/tag/0.1.2
+    : "${LOGOS_BOOTSTRAP_PEERS:=/ip4/65.109.51.37/udp/3000/quic-v1/p2p/12D3KooWFrouXfmrR4nsLMtE7wu15DoMJ6VtoUtHinREZCvbWHar,/ip4/65.109.51.37/udp/3001/quic-v1/p2p/12D3KooWJRGau8M1rjT7R5e4YYsgdFhsMX35nRDtMwCDjxQkXAHz,/ip4/65.109.51.37/udp/3002/quic-v1/p2p/12D3KooWQXJavMDTRscjauFSgVAB1VLB6Rzpy2uY5SU9Tk7927tb,/ip4/65.109.51.37/udp/3003/quic-v1/p2p/12D3KooWSQc7CcGtvWDPF1yCbBthFnQjprfCVHmfmNDUrSmqQsU1}"
     : "${LOGOS_GRAFANA_PORT:=3001}"
     : "${LOGOS_GRAFANA_AUTH:=false}"
     : "${LOGOS_GRAFANA_PASSWORD:=logos}"

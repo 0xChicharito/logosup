@@ -121,7 +121,7 @@ _perform_migration() {
     fi
 
     echo ""
-    log_step "Re-claim devnet tokens"
+    log_step "Re-claim testnet tokens"
     log_info "Visit the faucet to receive test tokens for your new keys:"
     log_info "  ${BOLD}${LOGOS_FAUCET_URL}${RESET}"
     log_info ""

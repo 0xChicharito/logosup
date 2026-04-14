@@ -1,15 +1,17 @@
 # Logos Network Configuration
 # Swap this file to connect to a different devnet/testnet/mainnet.
 
-network: devnet
+network: testnet
 
 # Bootstrap peers for initial network discovery.
 # Once connected, the node uses Kademlia to find additional peers.
 bootstrap_peers:
-  - /ip4/65.109.51.37/udp/3000/quic-v1/p2p/12D3KooWL7a8LBbLRYnabptHPFBCmAs49Y7cVMqvzuSdd43tAJk8
-  - /ip4/65.109.51.37/udp/3001/quic-v1/p2p/12D3KooWPLeAcachoUm68NXGD7tmNziZkVeMmeBS5NofyukuMRJh
-  - /ip4/65.109.51.37/udp/3002/quic-v1/p2p/12D3KooWKFNe4gS5DcCcRUVGdMjZp3fUWu6q6gG5R846Ui1pccHD
-  - /ip4/65.109.51.37/udp/3003/quic-v1/p2p/12D3KooWAnriLgXyQnGTYz1zPWPkQL3rthTKYLzuAP7MMnbgsxzR
+  # Updated for 0.1.2 release (genesis reset rotated peer IDs).
+  # Source: https://github.com/logos-blockchain/logos-blockchain/releases/tag/0.1.2
+  - /ip4/65.109.51.37/udp/3000/quic-v1/p2p/12D3KooWFrouXfmrR4nsLMtE7wu15DoMJ6VtoUtHinREZCvbWHar
+  - /ip4/65.109.51.37/udp/3001/quic-v1/p2p/12D3KooWJRGau8M1rjT7R5e4YYsgdFhsMX35nRDtMwCDjxQkXAHz
+  - /ip4/65.109.51.37/udp/3002/quic-v1/p2p/12D3KooWQXJavMDTRscjauFSgVAB1VLB6Rzpy2uY5SU9Tk7927tb
+  - /ip4/65.109.51.37/udp/3003/quic-v1/p2p/12D3KooWSQc7CcGtvWDPF1yCbBthFnQjprfCVHmfmNDUrSmqQsU1
 
 # Node release repository
 node_repo: logos-blockchain/logos-blockchain
@@ -21,6 +23,6 @@ cli_repo: shayanb/logos-node
 api_port: 8080
 udp_port: 3000
 
-# Devnet services
-faucet_url: https://devnet.blockchain.logos.co/web/faucet/
-dashboard_url: https://devnet.blockchain.logos.co/web/
+# Testnet services (renamed from devnet in the 0.1.2 release)
+faucet_url: https://testnet.blockchain.logos.co/web/faucet/
+dashboard_url: https://testnet.blockchain.logos.co/web/

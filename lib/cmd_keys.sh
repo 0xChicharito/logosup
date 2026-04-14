@@ -58,7 +58,7 @@ _keys_show() {
     done <<< "$keys"
 
     echo ""
-    log_info "Use these keys with the faucet to receive devnet tokens."
+    log_info "Use these keys with the faucet to receive testnet tokens."
     log_info "Faucet: ${BOLD}${LOGOS_FAUCET_URL}${RESET}"
     echo ""
     log_dim "Backup your keys: ${BOLD}logos-node keys backup${RESET}"
