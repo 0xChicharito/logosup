@@ -102,6 +102,14 @@ _perform_migration() {
     # ── Step 4: rebuild image ─────────────────────────────────────────
     docker_build || die "Failed to build Docker image for ${LOGOS_NODE_VERSION}"
 
+    # Also regenerate the monitoring compose file in case its schema has
+    # changed in this release (e.g. new services like logos-otel). Without
+    # this, the existing compose on disk would be stale and the dashboard
+    # would silently miss data sources.
+    if [[ -f "$(get_monitoring_compose_path)" ]]; then
+        generate_monitoring_compose_file
+    fi
+
     # ── Step 5: regenerate config ─────────────────────────────────────
     docker_init_config || die "Failed to regenerate node configuration"
 
