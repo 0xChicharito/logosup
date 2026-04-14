@@ -6,6 +6,8 @@ cmd_update() {
     check_docker
     load_config
 
+    _offer_drift_cleanup
+
     local update_cli=false
     local update_node=false
     local branch=""

@@ -21,6 +21,10 @@ _parse_network_yml() {
             continue
         fi
         if [[ "$in_peers" == true ]]; then
+            # Skip blank lines and full-line comments without ending the block.
+            if [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]]; then
+                continue
+            fi
             if [[ "$line" =~ ^[[:space:]]*-[[:space:]]*(.*) ]]; then
                 local peer="${BASH_REMATCH[1]}"
                 peer="${peer%%[[:space:]]*#*}"  # strip inline comments
@@ -120,6 +124,14 @@ load_config() {
         _parse_network_yml "$network_yml"
     fi
 
+    # Snapshot network-identity fields so we can detect stale overrides in
+    # settings.env (e.g. an old install that pinned LOGOS_BOOTSTRAP_PEERS to
+    # peer IDs that have since been rotated).
+    LOGOS_NET_BOOTSTRAP_PEERS="${LOGOS_BOOTSTRAP_PEERS:-}"
+    LOGOS_NET_FAUCET_URL="${LOGOS_FAUCET_URL:-}"
+    LOGOS_NET_DASHBOARD_URL="${LOGOS_DASHBOARD_URL:-}"
+    LOGOS_NET_NETWORK="${LOGOS_NETWORK:-}"
+
     # 2. Override with user settings (settings.env takes precedence)
     if [[ -f "$LOGOS_SETTINGS_FILE" ]]; then
         set -a
@@ -130,6 +142,67 @@ load_config() {
 
     # 3. Fill in any remaining defaults
     _set_defaults
+
+    # 4. Warn (once) if settings.env masks network-identity fields. Quiet by
+    # default; loud when the override differs from the network.yml value.
+    _warn_settings_drift
+}
+
+# Returns 0 (and echoes drifted key names, one per line) if settings.env
+# overrides any network-identity field with a value that differs from
+# network.yml. Returns 1 if there is no drift.
+check_settings_drift() {
+    [[ -f "$LOGOS_SETTINGS_FILE" ]] || return 1
+    local drifted=()
+    _drift_check() {
+        local key="$1" net="$2" current="$3"
+        [[ -z "$net" ]] && return
+        [[ "$current" == "$net" ]] && return
+        grep -q "^${key}=" "$LOGOS_SETTINGS_FILE" 2>/dev/null && drifted+=("$key")
+    }
+    _drift_check "LOGOS_BOOTSTRAP_PEERS" "$LOGOS_NET_BOOTSTRAP_PEERS" "$LOGOS_BOOTSTRAP_PEERS"
+    _drift_check "LOGOS_FAUCET_URL"      "$LOGOS_NET_FAUCET_URL"      "$LOGOS_FAUCET_URL"
+    _drift_check "LOGOS_DASHBOARD_URL"   "$LOGOS_NET_DASHBOARD_URL"   "$LOGOS_DASHBOARD_URL"
+    _drift_check "LOGOS_NETWORK"         "$LOGOS_NET_NETWORK"         "$LOGOS_NETWORK"
+    unset -f _drift_check
+    [[ ${#drifted[@]} -eq 0 ]] && return 1
+    printf '%s\n' "${drifted[@]}"
+    return 0
+}
+
+# Strip drifted keys from settings.env so network.yml takes effect on next load.
+clear_settings_drift() {
+    [[ -f "$LOGOS_SETTINGS_FILE" ]] || return 0
+    local key sed_args=()
+    while IFS= read -r key; do
+        [[ -z "$key" ]] && continue
+        sed_args+=("-e" "/^${key}=/d")
+    done < <(check_settings_drift)
+    [[ ${#sed_args[@]} -eq 0 ]] && return 0
+
+    # Backup once, then strip the drifted lines.
+    cp "$LOGOS_SETTINGS_FILE" "${LOGOS_SETTINGS_FILE}.pre-drift-cleanup-$(date +%Y%m%d-%H%M%S)"
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        sed -i '' "${sed_args[@]}" "$LOGOS_SETTINGS_FILE"
+    else
+        sed -i "${sed_args[@]}" "$LOGOS_SETTINGS_FILE"
+    fi
+}
+
+_warn_settings_drift() {
+    local drifted
+    drifted="$(check_settings_drift)" || return 0
+    # Inline message — common.sh may not be sourced yet at first load_config call,
+    # so don't rely on log_* helpers / colors.
+    {
+        echo ""
+        echo "⚠  settings.env overrides network.yml for:"
+        while IFS= read -r k; do echo "    - $k"; done <<< "$drifted"
+        echo "   These look like stale entries from a previous install."
+        echo "   Run 'logos-node update' or 'logos-node reset' to clean them up,"
+        echo "   or remove them manually from $LOGOS_SETTINGS_FILE"
+        echo ""
+    } >&2
 }
 
 # ── Settings helpers ──────────────────────────────────────────────────

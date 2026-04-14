@@ -4,6 +4,7 @@
 cmd_reset() {
     detect_platform
     check_docker
+    _offer_drift_cleanup
 
     local skip_confirm=false
     while [[ $# -gt 0 ]]; do
