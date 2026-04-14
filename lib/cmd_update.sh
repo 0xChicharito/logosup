@@ -98,6 +98,17 @@ cmd_update() {
         fi
     fi
 
+    # If the CLI was updated AND we still need to do node work, re-exec so the
+    # node update runs with the freshly-pulled code (otherwise the bash process
+    # keeps using the old in-memory functions — e.g. a new is_breaking_version
+    # entry on disk would never fire).
+    if [[ "$cli_updated" == "true" && "$update_node" == "true" && -z "${LOGOS_UPDATE_REEXEC:-}" ]]; then
+        echo ""
+        log_info "Re-running with updated CLI to apply node update..."
+        export LOGOS_UPDATE_REEXEC=1
+        exec "$LOGOS_NODE_ENTRY" update node
+    fi
+
     # ── Node update ───────────────────────────────────────────────────
     if [[ "$update_node" == "true" ]]; then
         log_step "Checking for node updates..."
