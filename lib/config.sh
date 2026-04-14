@@ -190,8 +190,14 @@ clear_settings_drift() {
 }
 
 _warn_settings_drift() {
+    # Single-fire guard: load_config runs both at dispatcher startup and inside
+    # individual cmd_* functions, so without this the warning fires twice.
+    # Also suppressed when the running command will prompt interactively
+    # (cmd_update / cmd_reset set LOGOS_DRIFT_WARNED=1 ahead of time).
+    [[ -n "${LOGOS_DRIFT_WARNED:-}" ]] && return 0
     local drifted
     drifted="$(check_settings_drift)" || return 0
+    export LOGOS_DRIFT_WARNED=1
     # Inline message — common.sh may not be sourced yet at first load_config call,
     # so don't rely on log_* helpers / colors.
     {

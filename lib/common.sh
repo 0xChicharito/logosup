@@ -59,6 +59,9 @@ confirm() {
 _offer_drift_cleanup() {
     local drifted
     drifted="$(check_settings_drift 2>/dev/null)" || return 0
+    # We're about to prompt — make sure no further passive warnings fire
+    # in this process (e.g. from the post-cleanup load_config reload).
+    export LOGOS_DRIFT_WARNED=1
     echo ""
     log_warn "${BOLD}Stale overrides detected in settings.env${RESET}"
     while IFS= read -r k; do
