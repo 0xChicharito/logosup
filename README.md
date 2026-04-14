@@ -34,6 +34,7 @@ The installer detects missing prerequisites and offers to install them automatic
 | `logos-node status` | Show consensus state, peers, wallet balances |
 | `logos-node logs` | Tail node logs (`-f`, `--tail=N`, `--since=1h`) |
 | `logos-node update` | Update node and/or CLI (`update node`, `update cli`, `update all`, `-b BRANCH`) |
+| `logos-node reset` | Wipe local data and regenerate config (use after a breaking release) |
 | `logos-node keys` | Show, backup, or restore wallet keys (`keys backup`, `keys restore`) |
 | `logos-node faucet` | Show faucet URL and keys, open in browser |
 | `logos-node inscribe` | Publish text inscriptions to the blockchain (interactive or piped) |
@@ -62,6 +63,26 @@ Both `logos-node` and `logosnode` work as the command name.
 | Check wallet balance | `logos-node status` shows balance for each key |
 | Consensus participation | Automatic after UTXO ages ~3.5 hours |
 | Inscribe text on-chain | `logos-node inscribe` runs the text sequencer inside the container |
+
+## Breaking-change migrations
+
+Some Logos Blockchain releases reset the genesis block or otherwise make existing local chain state incompatible. When that happens, you must wipe `~/.logos-node/data/` and regenerate `user_config.yaml`.
+
+The CLI handles this for you:
+
+- **Auto-detected during update** — `logos-node update` checks the target version against a list of known breaking releases (maintained in `lib/releases.sh` as `LOGOS_BREAKING_VERSIONS`). If detected, it prompts for a one-step migration instead of the standard update.
+- **Manual** — run `logos-node reset` (or `logos-node reset -y` for non-interactive) at any time to wipe local data and regenerate config against the currently-installed node version.
+
+What the migration does:
+
+1. Stops the node and monitoring stack
+2. Backs up `~/.logos-node/user_config.yaml` to `user_config.yaml.pre-migration-<timestamp>`
+3. Deletes `~/.logos-node/data/` (chain DB + logs)
+4. Rebuilds the Docker image
+5. Regenerates `user_config.yaml` with fresh wallet keys
+6. Restarts the node (and monitoring, if it was running)
+
+After migration you must re-claim faucet funds — the new chain starts from zero, so previous balances do not carry over. The pre-migration backup is preserved if you want to recover the old keys; see [Discord guidance](https://github.com/logos-blockchain/logos-blockchain/releases/tag/0.1.2) on which sections are portable.
 
 ## How it works
 

@@ -114,6 +114,27 @@ cmd_update() {
             print_separator
             echo ""
 
+            # Breaking-change releases (e.g. genesis reset) require wiping local
+            # data and regenerating user_config.yaml. Divert to migration flow.
+            if is_breaking_version "$LOGOS_NODE_VERSION"; then
+                log_warn "${BOLD}Release ${LOGOS_NODE_VERSION} contains breaking changes${RESET} (new genesis block)."
+                log_info "Migrating requires wiping local chain data and regenerating your config."
+                log_info "Your current ${BOLD}user_config.yaml${RESET} will be backed up first."
+                echo ""
+                if confirm "Proceed with breaking-change migration to ${LOGOS_NODE_VERSION}?" "n"; then
+                    save_setting "LOGOS_NODE_VERSION" "$LOGOS_NODE_VERSION"
+                    save_setting "LOGOS_CIRCUITS_VERSION" "$LOGOS_CIRCUITS_VERSION"
+                    generate_compose_file
+                    source "$LOGOS_NODE_LIB/cmd_reset.sh"
+                    _perform_migration "update" "true"
+                    return 0
+                else
+                    log_info "Update cancelled — run later with: ${BOLD}logos-node update${RESET}"
+                    log_info "Or trigger the migration manually with: ${BOLD}logos-node reset${RESET}"
+                    return 0
+                fi
+            fi
+
             if confirm "Update to ${LOGOS_NODE_VERSION}?"; then
                 local was_running=false
                 if docker_is_running; then
