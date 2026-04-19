@@ -4,7 +4,9 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
-  "links": [],
+  "links": [
+    { "title": "Deep Dive", "type": "link", "url": "/d/logos-node-deepdive", "icon": "doc" }
+  ],
   "panels": [
     {
       "collapsed": false,

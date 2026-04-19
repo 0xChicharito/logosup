@@ -34,10 +34,11 @@ The installer detects missing prerequisites and offers to install them automatic
 | `logos-node status` | Show consensus state, peers, wallet balances |
 | `logos-node logs` | Tail node logs (`-f`, `--tail=N`, `--since=1h`) |
 | `logos-node update` | Update node and/or CLI (`update node`, `update cli`, `update all`, `-b BRANCH`) |
+| `logos-node reset` | Wipe local data and regenerate config — use after a breaking release (`-y` for non-interactive) |
 | `logos-node keys` | Show, backup, or restore wallet keys (`keys backup`, `keys restore`) |
 | `logos-node faucet` | Show faucet URL and keys, open in browser |
 | `logos-node inscribe` | Publish text inscriptions to the blockchain (interactive or piped) |
-| `logos-node monitor` | Manage monitoring dashboard (`monitor start`, `monitor stop`, `monitor status`) |
+| `logos-node monitor` | Manage monitoring dashboard (`monitor start`, `monitor stop`, `monitor status`, `monitor auth on/off`) |
 | `logos-node security` | Scan and harden server security (firewall, SSH, auto-updates, fail2ban) |
 | `logos-node version` | Show CLI and node versions |
 | `logos-node help` | Show help |
@@ -63,6 +64,26 @@ Both `logos-node` and `logosnode` work as the command name.
 | Consensus participation | Automatic after UTXO ages ~3.5 hours |
 | Inscribe text on-chain | `logos-node inscribe` runs the text sequencer inside the container |
 
+## Breaking-change migrations
+
+Some Logos Blockchain releases reset the genesis block or otherwise make existing local chain state incompatible. When that happens, you must wipe `~/.logos-node/data/` and regenerate `user_config.yaml`.
+
+The CLI handles this for you:
+
+- **Auto-detected during update** — `logos-node update` checks the target version against a list of known breaking releases (maintained in `lib/releases.sh` as `LOGOS_BREAKING_VERSIONS`). If detected, it prompts for a one-step migration instead of the standard update.
+- **Manual** — run `logos-node reset` (or `logos-node reset -y` for non-interactive) at any time to wipe local data and regenerate config against the currently-installed node version.
+
+What the migration does:
+
+1. Stops the node and monitoring stack
+2. Backs up `~/.logos-node/user_config.yaml` to `user_config.yaml.pre-migration-<timestamp>`
+3. Deletes `~/.logos-node/data/` (chain DB + logs)
+4. Rebuilds the Docker image
+5. Regenerates `user_config.yaml` with fresh wallet keys
+6. Restarts the node (and monitoring, if it was running)
+
+After migration you must re-claim faucet funds — the new chain starts from zero, so previous balances do not carry over. The pre-migration backup is preserved if you want to recover the old keys; see [Discord guidance](https://github.com/logos-blockchain/logos-blockchain/releases/tag/0.1.2) on which sections are portable.
+
 ## How it works
 
 ### Installation flow
@@ -85,9 +106,9 @@ The node runs inside a Docker container based on `debian:trixie-slim` (glibc 2.3
 
 ### After install
 
-1. **Get devnet tokens** — run `logos-node faucet` to see your wallet keys and the faucet URL. Visit the [devnet faucet](https://devnet.blockchain.logos.co/web/faucet/), paste one of your keys, and request funds.
+1. **Get testnet tokens** — run `logos-node faucet` to see your wallet keys and the faucet URL. Visit the [testnet faucet](https://testnet.blockchain.logos.co/web/faucet/), paste one of your keys, and request funds.
 2. **Wait for UTXO maturity** — tokens must age approximately 3.5 hours (two epochs) before your node can participate in the consensus lottery.
-3. **Monitor** — use `logos-node status` to check consensus mode (Bootstrapping → Online), peer count, and wallet balances. Compare against the [devnet dashboard](https://devnet.blockchain.logos.co/web/).
+3. **Monitor** — use `logos-node status` to check consensus mode (Bootstrapping → Online), peer count, and wallet balances. Compare against the [testnet dashboard](https://testnet.blockchain.logos.co/web/).
 
 ### Inscribing text
 
@@ -124,11 +145,30 @@ Grafana is available at `https://localhost:3001` (or your server's IP on port 30
 └── grafana.key    # Private key
 ```
 
-Your browser will show a security warning on the first visit — this is expected, just accept it to proceed. To regenerate the certificate, delete the files above and restart monitoring. No login required to view dashboards — they are pre-provisioned with panels for consensus state, peer count, wallet balance, and container resource usage.
+Your browser will show a security warning on the first visit — this is expected, just accept it to proceed. To regenerate the certificate, delete the files above and restart monitoring.
 
-The monitoring stack runs as separate Docker containers alongside the node. You can also opt in during `logos-node install`.
+Two dashboards are provisioned:
 
-> **Upstream**: The Logos blockchain node is adding native Prometheus metrics ([#2012](https://github.com/logos-blockchain/logos-blockchain/pull/2012)) and Grafana dashboards ([#2227](https://github.com/logos-blockchain/logos-blockchain/pull/2227)). Once merged, our Prometheus config will automatically scrape the node's native `/metrics` endpoint alongside the custom exporter, unlocking deeper metrics for consensus, mempool, chainsync, and more.
+- **Logos Node** (Overview) — at-a-glance status: consensus mode, slot/height, peers, container health, wallet balances.
+- **Logos Node — Deep Dive** — native node metrics organized by service: consensus (block apply latency, proposals, fork count, finalized height), mempool (pending/added/removed), chainsync (request latency, downloads), orphans, blend (peers, message rates), KMS (sign requests/successes/failures), SDP (declarations, withdrawals), HTTP API and storage latency.
+
+Use the "Deep Dive" link in the top-right of the Overview dashboard to switch between them. No login required by default — enable with `logos-node monitor auth on`.
+
+#### Architecture
+
+The monitoring stack runs as separate Docker containers alongside the node:
+
+```
+logos-node ──OTLP/4317──▶ logos-otel ──:8889──▶ logos-prometheus ──▶ logos-grafana
+                                                       ▲
+logos-exporter (Python: container/host stats, wallet balances) ─────┘
+```
+
+- **logos-otel** (OpenTelemetry Collector) receives native metrics the node pushes via OTLP and re-exposes them in Prometheus format.
+- **logos-exporter** (Python) covers what the node doesn't emit natively: container CPU/memory/network, host stats, wallet balances.
+- **logos-prometheus** scrapes both, **logos-grafana** visualizes.
+
+Native OTLP push is enabled automatically in `user_config.yaml` (`tracing.metrics: !Otlp`) by `logos-node install` / `logos-node reset`. If you've customized that field, your value is preserved.
 
 ### Security hardening
 
@@ -170,10 +210,10 @@ All configuration lives in `~/.logos-node/` (override with `LOGOS_NODE_DIR` env 
 
 ### Network config (`network.yml`)
 
-Network-specific settings (bootstrap peers, ports, URLs) are defined in `network.yml` in the repository root. To switch networks (e.g., from devnet to a future testnet), swap this file:
+Network-specific settings (bootstrap peers, ports, URLs) are defined in `network.yml` in the repository root. To switch networks (e.g., from testnet to mainnet), swap this file:
 
 ```yaml
-network: devnet
+network: testnet
 
 bootstrap_peers:
   - /ip4/65.109.51.37/udp/3000/quic-v1/p2p/12D3KooW...
@@ -181,8 +221,8 @@ bootstrap_peers:
 
 api_port: 8080
 udp_port: 3000
-faucet_url: https://devnet.blockchain.logos.co/web/faucet/
-dashboard_url: https://devnet.blockchain.logos.co/web/
+faucet_url: https://testnet.blockchain.logos.co/web/faucet/
+dashboard_url: https://testnet.blockchain.logos.co/web/
 ```
 
 ### User settings (`settings.env`)
@@ -233,8 +273,8 @@ logos-node/
 
 - [Logos Blockchain quickstart guide](https://github.com/logos-co/logos-docs/blob/main/docs/blockchain/quickstart-guide-for-the-logos-blockchain-node.md)
 - [Logos Blockchain releases](https://github.com/logos-blockchain/logos-blockchain/releases/)
-- [Devnet faucet](https://devnet.blockchain.logos.co/web/faucet/)
-- [Devnet dashboard](https://devnet.blockchain.logos.co/web/)
+- [Testnet faucet](https://testnet.blockchain.logos.co/web/faucet/)
+- [Testnet dashboard](https://testnet.blockchain.logos.co/web/)
 - [Logos website](https://logos.co/)
 
 ## License

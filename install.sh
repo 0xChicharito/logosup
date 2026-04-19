@@ -613,7 +613,7 @@ info "Next step: set up your node. This will:"
 info "  1. Download the latest Logos Blockchain node"
 info "  2. Build the Docker image with ZK circuits"
 info "  3. Generate your node configuration and wallet keys"
-info "  4. Show you how to get devnet tokens"
+info "  4. Show you how to get testnet tokens"
 echo ""
 
 if confirm "Run logos-node install now?"; then

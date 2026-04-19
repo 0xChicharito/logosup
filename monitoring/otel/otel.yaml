@@ -1,0 +1,24 @@
+# OpenTelemetry Collector config — receives OTLP from the Logos node and
+# re-exposes the metrics in Prometheus format for our existing scrape stack.
+# Modeled on logos-blockchain/testnet/tracing/otel.yaml but stripped down to
+# metrics-only (no Loki/logs).
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+      http:
+        endpoint: "0.0.0.0:4318"
+
+exporters:
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    resource_to_telemetry_conversion:
+      enabled: true
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      exporters: [prometheus]

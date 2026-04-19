@@ -52,6 +52,35 @@ confirm() {
     esac
 }
 
+# ── Settings drift cleanup ────────────────────────────────────────────
+# Defined in common.sh (not config.sh) so it can use log_* / confirm helpers.
+# Detects when settings.env masks network.yml fields (e.g. stale bootstrap
+# peer IDs from an older install) and prompts the user to clean them up.
+_offer_drift_cleanup() {
+    local drifted
+    drifted="$(check_settings_drift 2>/dev/null)" || return 0
+    # We're about to prompt — make sure no further passive warnings fire
+    # in this process (e.g. from the post-cleanup load_config reload).
+    export LOGOS_DRIFT_WARNED=1
+    echo ""
+    log_warn "${BOLD}Stale overrides detected in settings.env${RESET}"
+    while IFS= read -r k; do
+        log_info "  - ${BOLD}${k}${RESET}"
+    done <<< "$drifted"
+    log_info "These mask the current network config from ${BOLD}network.yml${RESET}."
+    log_info "Most users should remove them so the latest network settings apply."
+    echo ""
+    if confirm "Remove these overrides from $LOGOS_SETTINGS_FILE?"; then
+        clear_settings_drift
+        # Reload so the rest of this command sees the cleaned values.
+        load_config
+        log_success "Cleaned up. A backup of the prior settings.env was kept alongside it."
+    else
+        log_dim "Keeping overrides as-is. Edit $LOGOS_SETTINGS_FILE manually if needed."
+    fi
+    echo ""
+}
+
 # ── Spinner ───────────────────────────────────────────────────────────
 # Usage: spinner <pid> "message"
 spinner() {

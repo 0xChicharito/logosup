@@ -221,6 +221,11 @@ docker_init_config() {
             log_dim "Patched HTTP backend to bind 0.0.0.0 (accessible from local network)"
         fi
 
+        # Enable OTLP metrics push so the monitoring stack can scrape native
+        # node metrics (mempool, consensus, blend, KMS, storage, etc.) via the
+        # OTel collector. Idempotent — only patches `metrics: None`.
+        patch_user_config_for_otlp "$config_path"
+
         log_success "Node configuration generated at $config_path"
         return 0
     else
@@ -228,6 +233,31 @@ docker_init_config() {
         log_info "You may need to generate it manually. See: logos-node --help"
         return 1
     fi
+}
+
+# Enable OTLP metrics push in user_config.yaml so logos-otel can collect
+# native node metrics. Idempotent: only rewrites `metrics: None`. If metrics
+# is already configured (e.g. operator customized it) we leave it alone.
+# If the otel-collector container is absent the node tolerates the missing
+# endpoint — push retries quietly in the background.
+patch_user_config_for_otlp() {
+    local config_path="$1"
+    [[ -f "$config_path" ]] || return 0
+    grep -qE '^[[:space:]]+metrics: None$' "$config_path" || return 0
+
+    awk '
+      /^[[:space:]]+metrics: None$/ {
+        match($0, /^[[:space:]]+/)
+        indent = substr($0, 1, RLENGTH)
+        print indent "metrics: !Otlp"
+        print indent "  endpoint: \"http://logos-otel:4317\""
+        print indent "  host_identifier: \"logos-node\""
+        next
+      }
+      { print }
+    ' "$config_path" > "${config_path}.tmp" && mv "${config_path}.tmp" "$config_path"
+    chmod 600 "$config_path"
+    log_dim "Enabled OTLP metrics push to logos-otel (for monitoring stack)"
 }
 
 # Start the node

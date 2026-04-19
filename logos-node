@@ -28,6 +28,11 @@ source "$LOGOS_NODE_LIB/releases.sh"
 source "$LOGOS_NODE_LIB/docker.sh"
 
 # ── Load config ───────────────────────────────────────────────────────
+# `update` and `reset` interactively prompt for drift cleanup themselves —
+# suppress the passive warning so the user only sees one notification.
+case "${1:-}" in
+    update|reset) export LOGOS_DRIFT_WARNED=1 ;;
+esac
 load_config
 
 # ── Help ──────────────────────────────────────────────────────────────
@@ -42,6 +47,7 @@ print_usage() {
     echo -e "  ${CYAN}status${RESET}     Show node status and health"
     echo -e "  ${CYAN}logs${RESET}       View node logs"
     echo -e "  ${CYAN}update${RESET}     Update the node and/or CLI tool"
+    echo -e "  ${CYAN}reset${RESET}      Wipe local data and regenerate config (use after breaking releases)"
     echo -e "  ${CYAN}keys${RESET}       Show, backup, or restore wallet keys"
     echo -e "  ${CYAN}faucet${RESET}     Open the faucet and display wallet keys"
     echo -e "  ${CYAN}inscribe${RESET}   Publish text inscriptions to the blockchain"
@@ -56,6 +62,8 @@ print_usage() {
     echo "  logos-node logs -f                    # Follow logs"
     echo "  logos-node update                     # Update node + CLI"
     echo "  logos-node update -b dev              # Switch CLI to a branch"
+    echo "  logos-node reset                      # Wipe data + regen config (after breaking release)"
+    echo "  logos-node monitor auth on            # Require Grafana login"
     echo "  logos-node inscribe                   # Inscribe text on-chain"
     echo "  logos-node security                   # Check server security"
     echo ""

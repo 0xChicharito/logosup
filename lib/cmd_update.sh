@@ -6,6 +6,8 @@ cmd_update() {
     check_docker
     load_config
 
+    _offer_drift_cleanup
+
     local update_cli=false
     local update_node=false
     local branch=""
@@ -98,6 +100,17 @@ cmd_update() {
         fi
     fi
 
+    # If the CLI was updated AND we still need to do node work, re-exec so the
+    # node update runs with the freshly-pulled code (otherwise the bash process
+    # keeps using the old in-memory functions — e.g. a new is_breaking_version
+    # entry on disk would never fire).
+    if [[ "$cli_updated" == "true" && "$update_node" == "true" && -z "${LOGOS_UPDATE_REEXEC:-}" ]]; then
+        echo ""
+        log_info "Re-running with updated CLI to apply node update..."
+        export LOGOS_UPDATE_REEXEC=1
+        exec "$LOGOS_NODE_ENTRY" update node
+    fi
+
     # ── Node update ───────────────────────────────────────────────────
     if [[ "$update_node" == "true" ]]; then
         log_step "Checking for node updates..."
@@ -113,6 +126,27 @@ cmd_update() {
             log_info "  Latest:  ${BOLD}${LOGOS_NODE_VERSION}${RESET}"
             print_separator
             echo ""
+
+            # Breaking-change releases (e.g. genesis reset) require wiping local
+            # data and regenerating user_config.yaml. Divert to migration flow.
+            if is_breaking_version "$LOGOS_NODE_VERSION"; then
+                log_warn "${BOLD}Release ${LOGOS_NODE_VERSION} contains breaking changes${RESET} (new genesis block)."
+                log_info "Migrating requires wiping local chain data and regenerating your config."
+                log_info "Your current ${BOLD}user_config.yaml${RESET} will be backed up first."
+                echo ""
+                if confirm "Proceed with breaking-change migration to ${LOGOS_NODE_VERSION}?" "n"; then
+                    save_setting "LOGOS_NODE_VERSION" "$LOGOS_NODE_VERSION"
+                    save_setting "LOGOS_CIRCUITS_VERSION" "$LOGOS_CIRCUITS_VERSION"
+                    generate_compose_file
+                    source "$LOGOS_NODE_LIB/cmd_reset.sh"
+                    _perform_migration "update" "true"
+                    return 0
+                else
+                    log_info "Update cancelled — run later with: ${BOLD}logos-node update${RESET}"
+                    log_info "Or trigger the migration manually with: ${BOLD}logos-node reset${RESET}"
+                    return 0
+                fi
+            fi
 
             if confirm "Update to ${LOGOS_NODE_VERSION}?"; then
                 local was_running=false

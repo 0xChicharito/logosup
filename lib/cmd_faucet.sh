@@ -5,7 +5,7 @@ cmd_faucet() {
     local config_path
     config_path="$(get_user_config_path)"
 
-    log_step "Logos Devnet Faucet"
+    log_step "Logos Testnet Faucet"
     echo ""
     log_info "Faucet URL: ${BOLD}${LOGOS_FAUCET_URL}${RESET}"
     echo ""

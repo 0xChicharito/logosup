@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 # DESCRIPTION: GitHub release detection and download helpers
 
+# Versions that introduce breaking on-chain changes (genesis reset, incompatible
+# state). Updating across one of these requires wiping local data and
+# regenerating user_config.yaml. Add new entries here as the chain evolves.
+LOGOS_BREAKING_VERSIONS=("0.1.2")
+
+is_breaking_version() {
+    local v="${1#v}"
+    local b
+    for b in "${LOGOS_BREAKING_VERSIONS[@]}"; do
+        [[ "$v" == "${b#v}" ]] && return 0
+    done
+    return 1
+}
+
 # Fetch the latest release tag from a GitHub repo
 # Usage: get_latest_release "owner/repo"
 get_latest_release() {
