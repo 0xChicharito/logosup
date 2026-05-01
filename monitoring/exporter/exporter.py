@@ -131,11 +131,15 @@ def poll_node_api():
     for key in keys:
         try:
             resp = requests.get(f"{NODE_API_URL}/wallet/{key}/balance", timeout=5)
-            resp.raise_for_status()
-            data = resp.json()
-            wallet_balance.labels(key=key[:16]).set(data.get("balance", 0))
-        except Exception:
-            pass
+            if resp.status_code == 200:
+                wallet_balance.labels(key=key[:16]).set(resp.json().get("balance", 0))
+            else:
+                body = resp.text.strip().replace("\n", " ")[:200]
+                log.warning("balance HTTP %s for key %s...: %s", resp.status_code, key[:16], body)
+                wallet_balance.labels(key=key[:16]).set(0)
+        except Exception as e:
+            log.warning("balance error for key %s...: %s", key[:16], e)
+            wallet_balance.labels(key=key[:16]).set(0)
 
 
 def calculate_cpu_percent(stats):
