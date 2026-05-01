@@ -76,6 +76,11 @@ services:
       - /proc:/host/proc:ro
       - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
       - ${LOGOS_NODE_DIR}/user_config.yaml:/app/user_config.yaml:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
     networks:
       - logos-net
 
@@ -90,6 +95,11 @@ services:
       - "4317"  # OTLP gRPC (node pushes here)
       - "4318"  # OTLP HTTP
       - "8889"  # Prometheus scrape
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
     networks:
       - logos-net
 
@@ -107,6 +117,11 @@ services:
       - '--storage.tsdb.retention.size=1GB'
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
     networks:
       - logos-net
 
@@ -130,6 +145,11 @@ services:
       - ${monitoring_dir}/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - ${LOGOS_NODE_DIR}/monitoring/grafana-data:/var/lib/grafana
       - ${LOGOS_NODE_DIR}/monitoring/certs:/etc/grafana/certs:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
     networks:
       - logos-net
 

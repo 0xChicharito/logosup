@@ -128,6 +128,11 @@ services:
       timeout: 5s
       retries: 3
       start_period: 120s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
     networks:
       - logos-net
 

@@ -108,7 +108,16 @@ cmd_update() {
         echo ""
         log_info "Re-running with updated CLI to apply node update..."
         export LOGOS_UPDATE_REEXEC=1
+        # Pass cli_changed_files through the re-exec so post-update hooks
+        # (compose regen, monitoring rebuild) can still fire in the new process.
+        export LOGOS_UPDATE_REEXEC_CHANGED_FILES="$cli_changed_files"
         exec "$LOGOS_NODE_ENTRY" update node
+    fi
+
+    # If we re-exec'd, restore the cli-updated state so post-update hooks fire.
+    if [[ -n "${LOGOS_UPDATE_REEXEC:-}" && "$cli_updated" != "true" ]]; then
+        cli_updated=true
+        cli_changed_files="${LOGOS_UPDATE_REEXEC_CHANGED_FILES:-}"
     fi
 
     # ── Node update ───────────────────────────────────────────────────
@@ -181,8 +190,30 @@ cmd_update() {
         fi
     fi
 
-    # ── Post-update: check if monitoring needs a rebuild ─────────────
+    # ── Post-update: check if compose files need to be regenerated ───
     if [[ "$cli_updated" == "true" ]]; then
+        # Node compose schema may have changed (e.g. logging caps, new env, etc).
+        # Regen if lib/docker.sh or the Dockerfile dir changed — the on-disk
+        # compose is fully derived from these.
+        if echo "$cli_changed_files" | grep -qE '^(lib/docker\.sh|docker/)'; then
+            local node_compose="$LOGOS_NODE_DIR/docker-compose.yml"
+            if [[ -f "$node_compose" ]]; then
+                echo ""
+                log_info "Node compose schema changed — regenerating docker-compose.yml"
+                generate_compose_file
+                if docker_is_running; then
+                    if confirm "Recreate the container now to apply the new compose?"; then
+                        log_step "Recreating node container..."
+                        docker_down
+                        source "$LOGOS_NODE_LIB/cmd_start.sh"
+                        cmd_start
+                    else
+                        log_info "Apply later with: ${BOLD}logos-node stop && logos-node start${RESET}"
+                    fi
+                fi
+            fi
+        fi
+
         local monitoring_compose="$LOGOS_NODE_DIR/docker-compose.monitoring.yml"
 
         if [[ -f "$monitoring_compose" ]] && echo "$cli_changed_files" | grep -qE '^(monitoring/|lib/monitoring\.sh)'; then
