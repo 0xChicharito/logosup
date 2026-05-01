@@ -63,29 +63,36 @@ host_load_15m = Gauge("logos_host_load_15m", "Host 15-minute load average")
 
 
 def parse_wallet_keys(config_path):
-    """Parse known_keys from user_config.yaml."""
+    """Parse wallet.known_keys from user_config.yaml.
+
+    Returns ONLY the keys under wallet.known_keys — not KMS key IDs, not the
+    libp2p node_key, not signing key IDs from other sections. A naive
+    regex-everything approach matched all 64-hex strings in the file and the
+    API rejected the non-wallet ones with HTTP 400.
+    """
     try:
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)
-
-        # Navigate to cl.backend.keys
-        keys = (
-            config.get("cl", {})
-            .get("backend", {})
-            .get("keys", {})
-        )
-        if keys:
-            return list(keys.keys())
+        known_keys = (config.get("wallet") or {}).get("known_keys") or {}
+        if known_keys:
+            return list(known_keys.keys())
     except Exception:
         pass
 
-    # Fallback: regex parse (same approach as the bash get_wallet_keys)
+    # Fallback: extract just the wallet.known_keys block from raw text.
     try:
         with open(config_path, "r") as f:
             content = f.read()
-        return re.findall(r"^\s+([a-f0-9]{64}):", content, re.MULTILINE)
+        m = re.search(
+            r"^\s*known_keys:\s*\n((?:[ \t]+[a-f0-9]{64}:.*\n?)+)",
+            content,
+            re.MULTILINE,
+        )
+        if m:
+            return re.findall(r"^[ \t]+([a-f0-9]{64}):", m.group(1), re.MULTILINE)
     except Exception:
-        return []
+        pass
+    return []
 
 
 def poll_node_api():
@@ -126,7 +133,9 @@ def poll_node_api():
     except Exception:
         pass
 
-    # Wallet balances
+    # Wallet balances. Don't zero the gauge on failure — leaving the last
+    # successful value avoids painting a fake "balance dropped to 0" line on
+    # the chart when the wallet endpoint has a transient hiccup.
     keys = parse_wallet_keys(CONFIG_PATH)
     for key in keys:
         try:
@@ -136,10 +145,8 @@ def poll_node_api():
             else:
                 body = resp.text.strip().replace("\n", " ")[:200]
                 log.warning("balance HTTP %s for key %s...: %s", resp.status_code, key[:16], body)
-                wallet_balance.labels(key=key[:16]).set(0)
         except Exception as e:
             log.warning("balance error for key %s...: %s", key[:16], e)
-            wallet_balance.labels(key=key[:16]).set(0)
 
 
 def calculate_cpu_percent(stats):
