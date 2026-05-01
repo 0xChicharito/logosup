@@ -94,7 +94,12 @@ cmd_status() {
             elif echo "$balance_resp" | grep -qi "not found"; then
                 log_info "${DIM}${key:0:16}...${RESET}  balance: ${BOLD}0${RESET} ${DIM}(no funds received yet)${RESET}"
             else
-                log_info "${DIM}${key:0:16}...${RESET}  balance: ${DIM}unavailable${RESET}"
+                local err_msg
+                err_msg="$(echo "$balance_resp" | tr '\n' ' ' | sed 's/  */ /g' | cut -c1-120)"
+                if [[ -z "$err_msg" ]]; then
+                    err_msg="(empty response)"
+                fi
+                log_info "${DIM}${key:0:16}...${RESET}  balance: ${DIM}error (HTTP ${http_code}): ${err_msg}${RESET}"
             fi
         done <<< "$keys"
     fi

@@ -6,13 +6,14 @@ cmd_keys() {
     shift 2>/dev/null || true
 
     case "$subcmd" in
-        show|"")    _keys_show ;;
-        backup)     _keys_backup "$@" ;;
-        restore)    _keys_restore "$@" ;;
-        -h|--help|help) _keys_help ;;
+        show|"")           _keys_show ;;
+        backup|export)     _keys_backup "$@" ;;
+        restore|import)    _keys_restore "$@" ;;
+        -h|--help|help)    _keys_help ;;
         *)
-            # If it doesn't match a subcommand, treat as "show" (backwards compat)
-            _keys_show
+            log_error "Unknown subcommand: ${subcmd}"
+            _keys_help
+            return 1
             ;;
     esac
 }
@@ -22,9 +23,9 @@ _keys_help() {
     log_step "Wallet key management"
     echo ""
     log_info "${BOLD}Usage:${RESET}"
-    log_info "  logos-node keys                       Show public keys"
-    log_info "  logos-node keys backup [FILE]          Export keys to a file"
-    log_info "  logos-node keys restore <FILE>         Import keys into current config"
+    log_info "  logos-node keys                          Show public keys"
+    log_info "  logos-node keys backup|export [FILE]     Export keys to a file"
+    log_info "  logos-node keys restore|import <FILE>    Import keys into current config"
     echo ""
     log_info "${BOLD}Backup file contains:${RESET}"
     log_info "  Public keys and their corresponding private keys."
@@ -123,8 +124,9 @@ _keys_restore() {
     local backup_file="${1:-}"
 
     if [[ -z "$backup_file" ]]; then
-        log_error "Usage: logos-node keys restore <FILE>"
-        log_info "Example: logos-node keys restore logos-node-keys.backup"
+        log_error "Missing file argument."
+        log_info "Usage:   logos-node keys import <FILE>     (or: keys restore <FILE>)"
+        log_info "Example: logos-node keys import logos-node-keys.backup"
         return 1
     fi
 
