@@ -85,14 +85,15 @@ _wallet_balance() {
     local any_ok=false
     while IFS= read -r key; do
         [[ -z "$key" ]] && continue
-        local body
-        body="$(wallet_get_balance "$key")"
+        # Note: do NOT use `$(wallet_get_balance ...)` — that runs in a subshell
+        # and the WALLET_* globals wouldn't propagate back. Call bare, read globals.
+        wallet_get_balance "$key"
 
-        if [[ "$WALLET_HTTP_CODE" == "200" && -n "$body" ]]; then
+        if [[ "$WALLET_HTTP_CODE" == "200" && -n "$WALLET_BODY" ]]; then
             local balance note_count
-            balance="$(echo "$body" | sed -E 's/.*"balance":([0-9]+).*/\1/')"
-            # Count notes by counting the comma-separated entries inside "notes":{...}
-            note_count="$(echo "$body" | grep -oE '"notes":\{[^}]*\}' | grep -oE '"[0-9a-f]{64}":' | wc -l | tr -d ' ')"
+            balance="$(echo "$WALLET_BODY" | sed -E 's/.*"balance":([0-9]+).*/\1/')"
+            # Count notes by counting the entries inside "notes":{...}
+            note_count="$(echo "$WALLET_BODY" | grep -oE '"notes":\{[^}]*\}' | grep -oE '"[0-9a-f]{64}":' | wc -l | tr -d ' ')"
             log_info "${DIM}${key:0:16}...${RESET}  balance: ${BOLD}${balance}${RESET}  notes: ${note_count}"
             if [[ "$balance" =~ ^[0-9]+$ ]]; then
                 total=$((total + balance))
@@ -100,7 +101,7 @@ _wallet_balance() {
             fi
             # If the user asked for a single key, dump per-note breakdown
             if [[ -n "$target_key" ]]; then
-                echo "$body" | grep -oE '"[0-9a-f]{64}":[0-9]+' \
+                echo "$WALLET_BODY" | grep -oE '"[0-9a-f]{64}":[0-9]+' \
                     | while IFS= read -r entry; do
                         local nid nval
                         nid="$(echo "$entry" | sed -E 's/^"([0-9a-f]{64})":.*/\1/')"
@@ -108,11 +109,11 @@ _wallet_balance() {
                         log_dim "    note ${nid:0:16}...  ${nval}"
                     done
             fi
-        elif echo "$body" | grep -qi "not found"; then
+        elif echo "$WALLET_BODY" | grep -qi "not found"; then
             log_info "${DIM}${key:0:16}...${RESET}  balance: ${BOLD}0${RESET} ${DIM}(no funds received yet)${RESET}"
         else
             local err
-            err="$(wallet_squash_body "$body")"
+            err="$(wallet_squash_body "$WALLET_BODY")"
             log_info "${DIM}${key:0:16}...${RESET}  balance: ${DIM}error (HTTP ${WALLET_HTTP_CODE}): ${err}${RESET}"
             if [[ "$WALLET_HTTP_CODE" == "408" ]]; then
                 log_dim "    (timeout — node may be busy; retry, or check ${BOLD}logos-node logs${RESET})"
@@ -193,15 +194,15 @@ _wallet_transfer() {
             log_error "--from must be a 64-character hex public key"
             return 1
         fi
-        # Verify it has enough balance before submitting
-        local body bal
-        body="$(wallet_get_balance "$from_key")"
+        # Verify it has enough balance before submitting (bare call, read globals)
+        wallet_get_balance "$from_key"
         if [[ "$WALLET_HTTP_CODE" != "200" ]]; then
             log_error "Could not check balance for --from key (HTTP $WALLET_HTTP_CODE)"
-            log_info "$(wallet_squash_body "$body")"
+            log_info "$(wallet_squash_body "$WALLET_BODY")"
             return 1
         fi
-        bal="$(echo "$body" | sed -E 's/.*"balance":([0-9]+).*/\1/')"
+        local bal
+        bal="$(echo "$WALLET_BODY" | sed -E 's/.*"balance":([0-9]+).*/\1/')"
         if [[ ! "$bal" =~ ^[0-9]+$ ]] || (( bal < amount )); then
             log_error "Insufficient balance: --from key has $bal, transferring $amount"
             return 1
@@ -232,12 +233,11 @@ _wallet_transfer() {
     fi
 
     log_step "Submitting..."
-    local resp
-    resp="$(wallet_post_transfer "$tip" "$change_key" "$from_key" "$recipient" "$amount")"
+    wallet_post_transfer "$tip" "$change_key" "$from_key" "$recipient" "$amount"
 
     if [[ "$WALLET_HTTP_CODE" == "201" || "$WALLET_HTTP_CODE" == "200" ]]; then
         local tx_hash
-        tx_hash="$(echo "$resp" | sed -E 's/.*"hash":"([^"]+)".*/\1/')"
+        tx_hash="$(echo "$WALLET_BODY" | sed -E 's/.*"hash":"([^"]+)".*/\1/')"
         echo ""
         log_success "Transaction submitted"
         log_info "Hash: ${BOLD}${tx_hash}${RESET}"
@@ -248,7 +248,7 @@ _wallet_transfer() {
         echo ""
     else
         log_error "Transfer failed (HTTP ${WALLET_HTTP_CODE})"
-        log_info "$(wallet_squash_body "$resp" 240)"
+        log_info "$(wallet_squash_body "$WALLET_BODY" 240)"
         if [[ "$WALLET_HTTP_CODE" == "408" ]]; then
             log_dim "Timeout — the node may be busy. Retry, or check ${BOLD}logos-node logs${RESET}"
         fi
@@ -270,28 +270,27 @@ _wallet_tx() {
     fi
 
     log_step "Transaction lookup"
-    local body
-    body="$(wallet_get_tx "$hash")"
+    wallet_get_tx "$hash"
 
-    if [[ "$WALLET_HTTP_CODE" == "200" && -n "$body" ]]; then
+    if [[ "$WALLET_HTTP_CODE" == "200" && -n "$WALLET_BODY" ]]; then
         echo ""
         log_info "Hash: ${DIM}${hash}${RESET}"
         # Best-effort field extraction; fall back to raw body
         local height slot
-        height="$(echo "$body" | sed -nE 's/.*"height":([0-9]+).*/\1/p' | head -1)"
-        slot="$(echo "$body" | sed -nE 's/.*"slot":([0-9]+).*/\1/p' | head -1)"
+        height="$(echo "$WALLET_BODY" | sed -nE 's/.*"height":([0-9]+).*/\1/p' | head -1)"
+        slot="$(echo "$WALLET_BODY" | sed -nE 's/.*"slot":([0-9]+).*/\1/p' | head -1)"
         [[ -n "$height" ]] && log_info "Height: ${BOLD}${height}${RESET}"
         [[ -n "$slot" ]]   && log_info "Slot:   ${BOLD}${slot}${RESET}"
         echo ""
         log_dim "Raw response:"
-        echo "$body"
+        echo "$WALLET_BODY"
         echo ""
-    elif [[ "$WALLET_HTTP_CODE" == "404" ]] || echo "$body" | grep -qi "not found"; then
+    elif [[ "$WALLET_HTTP_CODE" == "404" ]] || echo "$WALLET_BODY" | grep -qi "not found"; then
         log_warn "Transaction not found"
         log_dim "It may not be confirmed yet, or the hash is incorrect."
     else
         log_error "Lookup failed (HTTP ${WALLET_HTTP_CODE})"
-        log_info "$(wallet_squash_body "$body" 240)"
+        log_info "$(wallet_squash_body "$WALLET_BODY" 240)"
         return 1
     fi
 }

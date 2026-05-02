@@ -80,19 +80,20 @@ cmd_status() {
         source "$LOGOS_NODE_LIB/wallet.sh"
         log_step "Wallet"
         while IFS= read -r key; do
-            local balance_resp
-            balance_resp="$(wallet_get_balance "$key")"
+            # Bare call, then read WALLET_HTTP_CODE / WALLET_BODY globals.
+            # Don't use $(wallet_get_balance ...) — subshells lose the globals.
+            wallet_get_balance "$key"
 
-            if [[ "$WALLET_HTTP_CODE" == "200" && -n "$balance_resp" ]]; then
+            if [[ "$WALLET_HTTP_CODE" == "200" && -n "$WALLET_BODY" ]]; then
                 local balance
-                balance="$(echo "$balance_resp" | sed -E 's/.*"balance":([0-9]+).*/\1/')"
+                balance="$(echo "$WALLET_BODY" | sed -E 's/.*"balance":([0-9]+).*/\1/')"
                 log_info "${DIM}${key:0:16}...${RESET}  balance: ${BOLD}${balance}${RESET}"
             elif [[ "$WALLET_HTTP_CODE" == "200" ]]; then
                 log_info "${DIM}${key:0:16}...${RESET}  balance: ${BOLD}0${RESET}"
-            elif echo "$balance_resp" | grep -qi "not found"; then
+            elif echo "$WALLET_BODY" | grep -qi "not found"; then
                 log_info "${DIM}${key:0:16}...${RESET}  balance: ${BOLD}0${RESET} ${DIM}(no funds received yet)${RESET}"
             else
-                log_info "${DIM}${key:0:16}...${RESET}  balance: ${DIM}error (HTTP ${WALLET_HTTP_CODE}): $(wallet_squash_body "$balance_resp")${RESET}"
+                log_info "${DIM}${key:0:16}...${RESET}  balance: ${DIM}error (HTTP ${WALLET_HTTP_CODE}): $(wallet_squash_body "$WALLET_BODY")${RESET}"
             fi
         done <<< "$keys"
     fi
