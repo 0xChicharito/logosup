@@ -113,7 +113,7 @@ _wallet_balance() {
             log_info "${DIM}${key:0:16}...${RESET}  balance: ${BOLD}0${RESET} ${DIM}(no funds received yet)${RESET}"
         else
             local err
-            err="$(wallet_squash_body "$WALLET_BODY")"
+            err="$(wallet_squash_body "$WALLET_BODY" 120 "$WALLET_HTTP_CODE")"
             log_info "${DIM}${key:0:16}...${RESET}  balance: ${DIM}error (HTTP ${WALLET_HTTP_CODE}): ${err}${RESET}"
             if [[ "$WALLET_HTTP_CODE" == "408" ]]; then
                 log_dim "    (timeout — node may be busy; retry, or check ${BOLD}logos-node logs${RESET})"
@@ -198,7 +198,7 @@ _wallet_transfer() {
         wallet_get_balance "$from_key"
         if [[ "$WALLET_HTTP_CODE" != "200" ]]; then
             log_error "Could not check balance for --from key (HTTP $WALLET_HTTP_CODE)"
-            log_info "$(wallet_squash_body "$WALLET_BODY")"
+            log_info "$(wallet_squash_body "$WALLET_BODY" 120 "$WALLET_HTTP_CODE")"
             return 1
         fi
         local bal
@@ -248,7 +248,7 @@ _wallet_transfer() {
         echo ""
     else
         log_error "Transfer failed (HTTP ${WALLET_HTTP_CODE})"
-        log_info "$(wallet_squash_body "$WALLET_BODY" 240)"
+        log_info "$(wallet_squash_body "$WALLET_BODY" 240 "$WALLET_HTTP_CODE")"
         if [[ "$WALLET_HTTP_CODE" == "408" ]]; then
             log_dim "Timeout — the node may be busy. Retry, or check ${BOLD}logos-node logs${RESET}"
         fi
@@ -290,7 +290,7 @@ _wallet_tx() {
         log_dim "It may not be confirmed yet, or the hash is incorrect."
     else
         log_error "Lookup failed (HTTP ${WALLET_HTTP_CODE})"
-        log_info "$(wallet_squash_body "$WALLET_BODY" 240)"
+        log_info "$(wallet_squash_body "$WALLET_BODY" 240 "$WALLET_HTTP_CODE")"
         return 1
     fi
 }

@@ -93,7 +93,7 @@ cmd_status() {
             elif echo "$WALLET_BODY" | grep -qi "not found"; then
                 log_info "${DIM}${key:0:16}...${RESET}  balance: ${BOLD}0${RESET} ${DIM}(no funds received yet)${RESET}"
             else
-                log_info "${DIM}${key:0:16}...${RESET}  balance: ${DIM}error (HTTP ${WALLET_HTTP_CODE}): $(wallet_squash_body "$WALLET_BODY")${RESET}"
+                log_info "${DIM}${key:0:16}...${RESET}  balance: ${DIM}error (HTTP ${WALLET_HTTP_CODE}): $(wallet_squash_body "$WALLET_BODY" 120 "$WALLET_HTTP_CODE")${RESET}"
             fi
         done <<< "$keys"
     fi

@@ -113,15 +113,22 @@ wallet_pick_funding_key() {
 }
 
 # Squash a multi-line response body to a single trimmed line, capped to
-# `cap` chars. Used for inline error display. Pure transform, safe to call
-# via $(...) since it doesn't touch WALLET_* globals.
+# `cap` chars. Used for inline error display. If `code` is the special
+# curl-ish "000" (no response received), surface a connection-failed
+# explanation instead of an empty string.
+# Args: body [cap] [code]
 wallet_squash_body() {
     local body="${1:-}"
     local cap="${2:-120}"
+    local code="${3:-}"
     local out
     out="$(echo "$body" | tr '\n' ' ' | sed 's/  */ /g' | cut -c"1-${cap}")"
     if [[ -z "$out" ]]; then
-        echo "(empty response)"
+        if [[ "$code" == "000" ]]; then
+            echo "(no response — connection refused, timed out, or node API not reachable)"
+        else
+            echo "(empty response)"
+        fi
     else
         echo "$out"
     fi
