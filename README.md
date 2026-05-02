@@ -36,6 +36,7 @@ The installer detects missing prerequisites and offers to install them automatic
 | `logos-node update` | Update node and/or CLI (`update node`, `update cli`, `update all`, `-b BRANCH`) |
 | `logos-node reset` | Wipe local data and regenerate config — use after a breaking release (`-y` for non-interactive) |
 | `logos-node keys` | Show, backup, or restore wallet keys (`keys backup`, `keys restore`) |
+| `logos-node wallet` | Send transfers, check balance, look up transactions (`wallet balance`, `wallet transfer`, `wallet tx`) |
 | `logos-node faucet` | Show faucet URL and keys, open in browser |
 | `logos-node inscribe` | Publish text inscriptions to the blockchain (interactive or piped) |
 | `logos-node monitor` | Manage monitoring dashboard (`monitor start`, `monitor stop`, `monitor status`, `monitor auth on/off`) |
@@ -109,6 +110,31 @@ The node runs inside a Docker container based on `debian:trixie-slim` (glibc 2.3
 1. **Get testnet tokens** — run `logos-node faucet` to see your wallet keys and the faucet URL. Visit the [testnet faucet](https://testnet.blockchain.logos.co/web/faucet/), paste one of your keys, and request funds.
 2. **Wait for UTXO maturity** — tokens must age approximately 3.5 hours (two epochs) before your node can participate in the consensus lottery.
 3. **Monitor** — use `logos-node status` to check consensus mode (Bootstrapping → Online), peer count, and wallet balances. Compare against the [testnet dashboard](https://testnet.blockchain.logos.co/web/).
+
+### Wallet (transfers, balance, tx lookup)
+
+Once your node is funded, the `wallet` command sends transfers and inspects state via the node's built-in wallet API. All cryptography (signing, proof generation) happens inside the node — the CLI is a thin HTTP client, no extra dependencies.
+
+```sh
+# Show balance + note count for every known_key, with total
+logos-node wallet balance
+
+# Per-note breakdown for one key
+logos-node wallet balance 793055d1...
+
+# Send 100 to a recipient (auto-picks a funding key with sufficient balance)
+logos-node wallet transfer 8a3b7f...c2d1 100
+
+# Explicit funding/change keys, skip the confirmation prompt
+logos-node wallet send 8a3b7f...c2d1 100 --from 793055d1... --change 62156fa0... --yes
+
+# Look up a transaction by hash (0x prefix optional)
+logos-node wallet tx 4d8e2a...
+```
+
+This is the **base-layer wallet** — the keys in `wallet.known_keys` of `user_config.yaml`, queried against `/wallet/{pk}/balance` and `/wallet/transactions/transfer-funds` on the node. The Logos Execution Zone (LEZ) wallet is a separate layer-2 wallet with its own account model, faucet, and binary — tracked separately ([#9](https://github.com/shayanb/logos-node/issues/9)).
+
+A note on errors: if the wallet endpoint times out (HTTP 408), the CLI surfaces the API's response inline so you can see why. Retry the same command — don't auto-script retries since each transfer attempt is its own HTTP submission.
 
 ### Inscribing text
 
