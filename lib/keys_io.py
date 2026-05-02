@@ -15,9 +15,12 @@ import sys
 import yaml
 
 
-# The kms section uses YAML tags: !Zk <hex>, !Ed25519 <hex>. PyYAML doesn't
-# know these by default. Round-trip them through a transparent wrapper so we
-# never lose the tag.
+# The node config uses several YAML tags: scalar ones like `!Zk <hex>` and
+# `!Ed25519 <hex>` in the kms section, and mapping ones like `!Otlp { endpoint,
+# host_identifier }` under tracing.metrics. PyYAML doesn't know these by
+# default. Round-trip them through a transparent wrapper so the tag never
+# disappears regardless of whether the wrapped value is a scalar, mapping,
+# or sequence.
 class _Tagged:
     __slots__ = ("tag", "value")
 
@@ -27,11 +30,25 @@ class _Tagged:
 
 
 def _tag_constructor(loader, tag_suffix, node):
-    return _Tagged(tag_suffix, loader.construct_scalar(node))
+    if isinstance(node, yaml.ScalarNode):
+        v = loader.construct_scalar(node)
+    elif isinstance(node, yaml.MappingNode):
+        v = loader.construct_mapping(node, deep=True)
+    elif isinstance(node, yaml.SequenceNode):
+        v = loader.construct_sequence(node, deep=True)
+    else:
+        v = None
+    return _Tagged(tag_suffix, v)
 
 
 def _tag_representer(dumper, data):
-    return dumper.represent_scalar(f"!{data.tag}", str(data.value))
+    tag = f"!{data.tag}"
+    v = data.value
+    if isinstance(v, dict):
+        return dumper.represent_mapping(tag, v)
+    if isinstance(v, list):
+        return dumper.represent_sequence(tag, v)
+    return dumper.represent_scalar(tag, str(v))
 
 
 yaml.SafeLoader.add_multi_constructor("!", _tag_constructor)
