@@ -25,6 +25,7 @@
       "targets": [{ "expr": "consensus_tip_height", "refId": "A" }] },
 
     { "type": "stat", "id": 3, "title": "Finalized Height",
+      "description": "Last Irreversible Block height. May stay at 0 on long-running chains until LIB advances past genesis (see logos-blockchain#2622).",
       "datasource": "Prometheus",
       "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area", "textMode": "value" },
@@ -52,58 +53,59 @@
       "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 1 }, { "color": "green", "value": 3 }] } } },
       "targets": [{ "expr": "consensus_peers_connected", "refId": "A" }] },
 
-    { "type": "timeseries", "id": 10, "title": "Block Apply Latency (p50/p95/p99)",
+    { "type": "timeseries", "id": 12, "title": "Blocks Imported",
       "datasource": "Prometheus",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
-      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" } } },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
-      "targets": [
-        { "expr": "histogram_quantile(0.50, sum by (le) (rate(consensus_apply_block_seconds_bucket[5m])))", "legendFormat": "p50", "refId": "A" },
-        { "expr": "histogram_quantile(0.95, sum by (le) (rate(consensus_apply_block_seconds_bucket[5m])))", "legendFormat": "p95", "refId": "B" },
-        { "expr": "histogram_quantile(0.99, sum by (le) (rate(consensus_apply_block_seconds_bucket[5m])))", "legendFormat": "p99", "refId": "C" }
-      ] },
-
-    { "type": "timeseries", "id": 11, "title": "Proposals (created / received / ignored / failed)",
-      "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
       "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" } } },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "targets": [
-        { "expr": "rate(consensus_proposals_created_total[5m])",  "legendFormat": "created/s",  "refId": "A" },
-        { "expr": "rate(consensus_proposals_received_total[5m])", "legendFormat": "received/s", "refId": "B" },
-        { "expr": "rate(consensus_proposals_ignored_total[5m])",  "legendFormat": "ignored/s",  "refId": "C" },
-        { "expr": "rate(consensus_proposals_create_failed_total[5m])", "legendFormat": "create-failed/s", "refId": "D" }
-      ] },
-
-    { "type": "timeseries", "id": 12, "title": "Blocks Imported & Apply Failures",
-      "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
-      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" } } },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
-      "targets": [
-        { "expr": "rate(consensus_blocks_imported_total[5m])",     "legendFormat": "imported/s", "refId": "A" },
-        { "expr": "rate(consensus_apply_block_failed_total[5m])",  "legendFormat": "apply failures/s", "refId": "B" }
+        { "expr": "rate(consensus_blocks_imported_total[5m])", "legendFormat": "imported/s", "refId": "A" }
       ] },
 
     { "type": "timeseries", "id": 13, "title": "Block Transactions",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
       "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" } } },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
       "targets": [{ "expr": "rate(consensus_block_transactions_total[5m])", "legendFormat": "tx/s", "refId": "A" }] },
 
-    { "type": "row", "id": 1100, "title": "Mempool", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 }, "collapsed": false },
+    { "type": "row", "id": 1050, "title": "Wall-clock vs Chain Time", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 }, "collapsed": false },
+
+    { "type": "stat", "id": 14, "title": "Wall-clock Slot",
+      "description": "Slot the network thinks should be current right now. Compare with Current Slot above to gauge sync lag.",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 14 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area", "textMode": "value" },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] } } },
+      "targets": [{ "expr": "time_current_slot", "refId": "A" }] },
+
+    { "type": "stat", "id": 15, "title": "Sync Lag (slots)",
+      "description": "time_current_slot - consensus_current_slot. Should approach 0 once node is synced.",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 14 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value" },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 100 }, { "color": "red", "value": 1000 }] } } },
+      "targets": [{ "expr": "time_current_slot - consensus_current_slot", "refId": "A" }] },
+
+    { "type": "timeseries", "id": 16, "title": "Sync Lag over time",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 4, "w": 12, "x": 12, "y": 14 },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" } } },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [{ "expr": "time_current_slot - consensus_current_slot", "legendFormat": "lag (slots)", "refId": "A" }] },
+
+    { "type": "row", "id": 1100, "title": "Mempool", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 }, "collapsed": false },
 
     { "type": "stat", "id": 20, "title": "Pending Transactions",
       "datasource": "Prometheus",
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 22 },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 19 },
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area", "textMode": "value" },
       "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] } } },
       "targets": [{ "expr": "mempool_transactions_pending", "refId": "A" }] },
 
     { "type": "timeseries", "id": 21, "title": "Mempool Throughput (added vs removed)",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 22 },
+      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 19 },
       "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" } } },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "targets": [
@@ -111,11 +113,11 @@
         { "expr": "rate(mempool_transactions_removed_total[5m])", "legendFormat": "removed/s", "refId": "B" }
       ] },
 
-    { "type": "row", "id": 1200, "title": "Chain Sync & Orphans", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 }, "collapsed": false },
+    { "type": "row", "id": 1200, "title": "Chain Sync", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 }, "collapsed": false },
 
-    { "type": "timeseries", "id": 30, "title": "Chainsync Tip Request Latency",
+    { "type": "timeseries", "id": 30, "title": "Tip Request Latency (p50/p95)",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 31 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
       "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" } } },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "targets": [
@@ -123,109 +125,82 @@
         { "expr": "histogram_quantile(0.95, sum by (le) (rate(chainsync_request_tip_seconds_bucket[5m])))", "legendFormat": "p95", "refId": "B" }
       ] },
 
-    { "type": "timeseries", "id": 31, "title": "Chainsync Requests / Block Downloads",
+    { "type": "timeseries", "id": 31, "title": "Block Download Latency (p50/p95)",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" } } },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum by (le) (rate(chainsync_download_blocks_seconds_bucket[5m])))", "legendFormat": "p50", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum by (le) (rate(chainsync_download_blocks_seconds_bucket[5m])))", "legendFormat": "p95", "refId": "B" }
+      ] },
+
+    { "type": "timeseries", "id": 32, "title": "Sync Requests & Block Downloads",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 36 },
       "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" } } },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "targets": [
-        { "expr": "rate(chainsync_requests_total[5m])",        "legendFormat": "requests/s", "refId": "A" },
-        { "expr": "rate(chainsync_download_blocks_blocks[5m])", "legendFormat": "blocks/s",  "refId": "B" }
+        { "expr": "rate(chainsync_requests_total[5m])",                  "legendFormat": "requests/s",          "refId": "A" },
+        { "expr": "rate(chainsync_download_blocks_blocks_count[5m])",    "legendFormat": "download batches/s",  "refId": "B" },
+        { "expr": "rate(chainsync_download_blocks_blocks_sum[5m])",      "legendFormat": "blocks downloaded/s", "refId": "C" }
       ] },
 
-    { "type": "stat", "id": 32, "title": "Pending Orphans",
-      "datasource": "Prometheus",
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 39 },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value" },
-      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 10 }, { "color": "red", "value": 100 }] } } },
-      "targets": [{ "expr": "orphan_blocks_pending", "refId": "A" }] },
+    { "type": "row", "id": 1300, "title": "Network", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 44 }, "collapsed": false },
 
-    { "type": "timeseries", "id": 33, "title": "Orphan Block Activity",
+    { "type": "stat", "id": 40, "title": "Connections",
+      "description": "consensus_connections gauge — active node-to-node connections.",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 39 },
-      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" } } },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
-      "targets": [
-        { "expr": "rate(orphan_blocks_received_total[5m])",  "legendFormat": "received/s", "refId": "A" },
-        { "expr": "rate(orphan_blocks_enqueued_total[5m])",  "legendFormat": "enqueued/s", "refId": "B" },
-        { "expr": "rate(orphan_blocks_removed_total[5m])",   "legendFormat": "removed/s",  "refId": "C" },
-        { "expr": "rate(orphan_blocks_fetch_failed_total[5m])", "legendFormat": "fetch-failed/s", "refId": "D" }
-      ] },
-
-    { "type": "row", "id": 1300, "title": "Blend", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 47 }, "collapsed": false },
-
-    { "type": "stat", "id": 40, "title": "Blend Peers",
-      "datasource": "Prometheus",
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 48 },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 45 },
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area", "textMode": "value" },
       "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] } } },
-      "targets": [{ "expr": "blend_peers_connected", "refId": "A" }] },
+      "targets": [{ "expr": "consensus_connections", "refId": "A" }] },
 
-    { "type": "timeseries", "id": 41, "title": "Blend Messages (sent / received / failed)",
+    { "type": "timeseries", "id": 41, "title": "Network Dial Failures",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 48 },
+      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 45 },
       "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" } } },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
-      "targets": [
-        { "expr": "rate(blend_messages_sent_total[5m])",     "legendFormat": "sent/s",     "refId": "A" },
-        { "expr": "rate(blend_messages_received_total[5m])", "legendFormat": "received/s", "refId": "B" },
-        { "expr": "rate(blend_outbound_messages_failed_total[5m])", "legendFormat": "outbound-failed/s", "refId": "C" },
-        { "expr": "rate(blend_inbound_messages_failed_total[5m])",  "legendFormat": "inbound-failed/s",  "refId": "D" }
-      ] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [{ "expr": "rate(network_dial_failures_total[5m])", "legendFormat": "dial failures/s", "refId": "A" }] },
 
-    { "type": "row", "id": 1400, "title": "KMS & SDP", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 56 }, "collapsed": false },
-
-    { "type": "timeseries", "id": 50, "title": "KMS Sign Requests",
-      "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 57 },
-      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" } } },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
-      "targets": [
-        { "expr": "rate(kms_sign_requests_total[5m])",   "legendFormat": "requests/s", "refId": "A" },
-        { "expr": "rate(kms_sign_success_total[5m])",    "legendFormat": "success/s",  "refId": "B" },
-        { "expr": "rate(kms_sign_failures_total[5m])",   "legendFormat": "failures/s", "refId": "C" }
-      ] },
-
-    { "type": "timeseries", "id": 51, "title": "SDP — Declarations & Withdrawals",
-      "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 57 },
-      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" } } },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
-      "targets": [
-        { "expr": "rate(sdp_declarations_total[5m])",          "legendFormat": "declarations/s", "refId": "A" },
-        { "expr": "rate(sdp_declaration_success_total[5m])",   "legendFormat": "decl success/s", "refId": "B" },
-        { "expr": "rate(sdp_withdrawals_total[5m])",           "legendFormat": "withdrawals/s",  "refId": "C" },
-        { "expr": "rate(sdp_withdrawal_success_total[5m])",    "legendFormat": "wd success/s",   "refId": "D" }
-      ] },
-
-    { "type": "row", "id": 1500, "title": "HTTP API & Storage", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 65 }, "collapsed": false },
+    { "type": "row", "id": 1400, "title": "HTTP API & Storage", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 53 }, "collapsed": false },
 
     { "type": "timeseries", "id": 60, "title": "HTTP Request Rate & Failures",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 66 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 54 },
       "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" } } },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "targets": [
-        { "expr": "sum by (path) (rate(http_requests_total[5m]))",        "legendFormat": "{{path}}", "refId": "A" },
-        { "expr": "sum (rate(http_requests_failed_total[5m]))",           "legendFormat": "failed/s", "refId": "B" }
+        { "expr": "sum by (path) (rate(http_requests_total[5m]))",  "legendFormat": "{{path}}", "refId": "A" },
+        { "expr": "sum (rate(http_requests_failed_total[5m]))",     "legendFormat": "failed/s", "refId": "B" }
       ] },
 
     { "type": "timeseries", "id": 61, "title": "HTTP Request Duration (p95)",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 66 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 54 },
       "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" } } },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
       "targets": [{ "expr": "histogram_quantile(0.95, sum by (le, path) (rate(http_request_duration_seconds_bucket[5m])))", "legendFormat": "{{path}}", "refId": "A" }] },
 
-    { "type": "timeseries", "id": 62, "title": "Storage Latency & Failures",
+    { "type": "timeseries", "id": 62, "title": "Storage Latency (p50/p95)",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 74 },
-      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" } } },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 62 },
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" } } },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "targets": [
-        { "expr": "histogram_quantile(0.95, sum by (le) (rate(storage_request_duration_seconds_bucket[5m])))", "legendFormat": "p95 latency", "refId": "A" },
-        { "expr": "rate(storage_request_failed_total[5m])", "legendFormat": "failures/s", "refId": "B" }
-      ] }
+        { "expr": "histogram_quantile(0.50, sum by (le) (rate(storage_request_duration_seconds_bucket[5m])))", "legendFormat": "p50", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum by (le) (rate(storage_request_duration_seconds_bucket[5m])))", "legendFormat": "p95", "refId": "B" }
+      ] },
+
+    { "type": "row", "id": 1500, "title": "KMS", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 70 }, "collapsed": false },
+
+    { "type": "timeseries", "id": 70, "title": "KMS Public Key Requests",
+      "description": "Lookups against the local KMS for public keys. Sign-request metrics (kms_sign_*) aren't emitted in v0.1.2 on passive nodes.",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 71 },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" } } },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [{ "expr": "rate(kms_public_key_requests_total[5m])", "legendFormat": "pk requests/s", "refId": "A" }] }
   ],
   "refresh": "15s",
   "schemaVersion": 39,
@@ -236,5 +211,5 @@
   "timezone": "browser",
   "title": "Logos Node — Deep Dive",
   "uid": "logos-node-deepdive",
-  "version": 1
+  "version": 2
 }
