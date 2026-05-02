@@ -24,17 +24,22 @@ _keys_help() {
     echo ""
     log_info "${BOLD}Usage:${RESET}"
     log_info "  logos-node keys                          Show public keys"
-    log_info "  logos-node keys backup|export [FILE]     Export full wallet config to a file"
-    log_info "  logos-node keys restore|import <FILE>    Restore wallet config from a file"
+    log_info "  logos-node keys backup|export [FILE]     Export wallet keys to a file"
+    log_info "  logos-node keys restore|import <FILE>    Splice wallet keys back into config"
     echo ""
     log_info "${BOLD}What's in a backup file:${RESET}"
-    log_info "  A copy of ${BOLD}user_config.yaml${RESET} — all wallet identities (the KMS section"
-    log_info "  holds the actual signing keys). Anyone with this file can spend your funds."
-    log_info "  Keep it safe (offline backup, encrypted disk, etc)."
+    log_info "  A YAML containing only the key-bearing fields: ${DIM}wallet.known_keys${RESET},"
+    log_info "  ${DIM}kms.backend.keys${RESET} (the actual signing material as ${DIM}!Zk${RESET}/${DIM}!Ed25519${RESET}),"
+    log_info "  the libp2p ${DIM}node_key${RESET}, blend signing key ids, and funding-pk references."
+    log_info "  No peers, ports, monitoring config — just identity. ${BOLD}Anyone with this file can"
+    log_info "  spend your funds${RESET}; keep it offline / encrypted."
     echo ""
-    log_info "${BOLD}Note:${RESET} restore overwrites the entire node config, not just keys."
-    log_info "If you've customized network settings since the backup, those revert too."
-    log_info "The previous config is saved to ${DIM}user_config.yaml.pre-restore-<timestamp>${RESET}."
+    log_info "${BOLD}Cross-version safe:${RESET} restore only touches the listed key paths. Network"
+    log_info "  settings, monitoring, log filters etc are preserved as-is. Backups taken on"
+    log_info "  one node version restore cleanly onto a different version."
+    echo ""
+    log_info "${BOLD}Dependencies:${RESET} python3 + PyYAML (pre-installed on most Linux/macOS)."
+    log_info "  If missing: ${DIM}sudo apt install python3-yaml${RESET}  /  ${DIM}pip3 install pyyaml${RESET}"
     echo ""
 }
 
@@ -71,6 +76,20 @@ _keys_show() {
     echo ""
 }
 
+_keys_check_python() {
+    if ! command -v python3 &>/dev/null; then
+        log_error "python3 is required for keys backup/restore but isn't installed."
+        log_info "Install: ${BOLD}sudo apt install python3${RESET}  /  ${BOLD}brew install python3${RESET}"
+        return 1
+    fi
+    if ! python3 -c "import yaml" &>/dev/null; then
+        log_error "PyYAML (python3-yaml) is required but isn't installed."
+        log_info "Install: ${BOLD}sudo apt install python3-yaml${RESET}  /  ${BOLD}pip3 install pyyaml${RESET}"
+        return 1
+    fi
+    return 0
+}
+
 _keys_backup() {
     local config_path
     config_path="$(get_user_config_path)"
@@ -78,6 +97,8 @@ _keys_backup() {
     if [[ ! -f "$config_path" ]]; then
         die "Node configuration not found at $config_path\nRun 'logos-node install' first."
     fi
+
+    _keys_check_python || return 1
 
     local backup_file="${1:-logos-node-keys.backup.yaml}"
 
@@ -89,19 +110,24 @@ _keys_backup() {
         fi
     fi
 
-    # Save the entire user_config.yaml. The wallet's signing material lives in
-    # the kms.backend.keys section (mapping the same KeyIds that show up in
-    # wallet.known_keys to the actual !Zk / !Ed25519 secret bytes), plus
-    # references in cryptarchia.leader.wallet.funding_pk, sdp.wallet.funding_pk,
-    # blend.*.kms_id, etc. A partial backup of just wallet.known_keys can't be
-    # restored to anything functional — restoring those public IDs against a
-    # freshly-regenerated KMS section produces unsignable keys. So we save the
-    # whole config and restore it whole.
-    cp "$config_path" "$backup_file"
+    # Extract just the key paths into a portable YAML. The keys_io.py helper
+    # walks a fixed list of key-bearing paths (network.node_key, kms.*, wallet.*,
+    # blend.*.kms_id, leader/sdp funding_pk) so the backup is host-agnostic and
+    # cross-version: future schema changes outside those paths don't break
+    # restoration.
+    if ! python3 "$LOGOS_NODE_LIB/keys_io.py" extract "$config_path" > "$backup_file"; then
+        rm -f "$backup_file"
+        die "Failed to extract keys from $config_path"
+    fi
     chmod 600 "$backup_file"
 
+    if [[ ! -s "$backup_file" ]]; then
+        rm -f "$backup_file"
+        die "Backup file is empty — no key fields found in config"
+    fi
+
     echo ""
-    log_success "Wallet config backed up to ${BOLD}${backup_file}${RESET}"
+    log_success "Wallet keys backed up to ${BOLD}${backup_file}${RESET}"
     echo ""
 
     # Show the public keys in the backup
@@ -133,6 +159,8 @@ _keys_restore() {
         die "Backup file not found: $backup_file"
     fi
 
+    _keys_check_python || return 1
+
     local config_path
     config_path="$(get_user_config_path)"
 
@@ -140,18 +168,18 @@ _keys_restore() {
         die "Node configuration not found at $config_path\nRun 'logos-node install' first, then restore keys."
     fi
 
-    # Sanity-check the backup looks like a user_config.yaml. The full backup is
-    # a copy of user_config.yaml — should have a top-level wallet: + kms: section.
+    # Sanity-check the backup. Both keys-only backups and full-config backups
+    # have wallet: and kms: at the top level, so this guard catches truly
+    # unrelated files (and the broken older format that only stored
+    # known_keys without kms).
     if ! grep -qE "^wallet:" "$backup_file" || ! grep -qE "^kms:" "$backup_file"; then
-        log_error "Backup file doesn't look like a full Logos node config."
-        log_info "It must contain top-level ${BOLD}wallet:${RESET} and ${BOLD}kms:${RESET} sections."
-        log_dim "Backups created by older logos-node versions (only the known_keys block) cannot be restored — they don't include KMS signing material."
+        log_error "Backup file is missing top-level ${BOLD}wallet:${RESET} and/or ${BOLD}kms:${RESET} sections."
+        log_dim "Old-style backups (just the known_keys block) can't be restored — they don't include the KMS signing material that the keys depend on."
         return 1
     fi
 
-    # Show what's about to change — known_keys and KMS key ids
     echo ""
-    log_step "Restore wallet configuration from $backup_file"
+    log_step "Restore wallet keys from $backup_file"
     echo ""
 
     log_info "Backup contains keys:"
@@ -169,8 +197,8 @@ _keys_restore() {
         echo ""
     fi
 
-    log_warn "${BOLD}This will replace your ENTIRE node config${RESET} with the backup."
-    log_warn "Includes wallet, kms, network, monitoring — not just wallet keys."
+    log_warn "Wallet keys + KMS material from the backup will replace those in the current config."
+    log_dim "Other config (peers, ports, monitoring, log levels) is preserved."
     log_dim "Previous config will be saved to ${BOLD}user_config.yaml.pre-restore-<timestamp>${RESET} for rollback."
     echo ""
     if ! confirm "Proceed with restore?" "n"; then
@@ -183,11 +211,24 @@ _keys_restore() {
     cp "$config_path" "$rollback"
     chmod 600 "$rollback"
 
-    cp "$backup_file" "$config_path"
+    # Splice via the python helper. Only key paths are written; everything
+    # else in the current config is preserved. Cross-version safe.
+    local tmp="${config_path}.tmp"
+    if ! python3 "$LOGOS_NODE_LIB/keys_io.py" inject "$backup_file" "$config_path" "$tmp"; then
+        rm -f "$tmp"
+        die "Failed to inject keys into config (rollback at $rollback)"
+    fi
+
+    if [[ ! -s "$tmp" ]]; then
+        rm -f "$tmp"
+        die "Inject produced empty output (rollback at $rollback)"
+    fi
+
+    mv "$tmp" "$config_path"
     chmod 600 "$config_path"
 
     echo ""
-    log_success "Wallet configuration restored"
+    log_success "Wallet keys restored"
     log_info "Previous config saved to ${DIM}${rollback}${RESET}"
     echo ""
 
