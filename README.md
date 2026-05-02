@@ -196,6 +196,20 @@ logos-exporter (Python: container/host stats, wallet balances) ─────�
 
 Native OTLP push is enabled automatically in `user_config.yaml` (`tracing.metrics: !Otlp`) by `logos-node install` / `logos-node reset`. If you've customized that field, your value is preserved.
 
+#### Troubleshooting: memory shows 0 B on Raspberry Pi
+
+If the System & Containers dashboard shows **Memory: 0 B** and `docker stats` reports `0B / 0B` for MEM USAGE, the kernel doesn't have memory cgroups enabled. Pi OS doesn't enable them by default.
+
+Fix on the Pi:
+
+```sh
+sudo nano /boot/firmware/cmdline.txt    # or /boot/cmdline.txt on older Pi OS
+# Append (on the same single line):  cgroup_enable=memory cgroup_memory=1
+sudo reboot
+```
+
+After reboot, `docker stats` should show real memory usage and the dashboard panels populate. Affects only memory; CPU and network metrics work without this flag.
+
 ### Security hardening
 
 Harden your server with one command:

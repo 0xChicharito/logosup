@@ -60,6 +60,7 @@
       "id": 203,
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "textMode": "value", "reduceOptions": { "calcs": ["lastNotNull"] } },
       "title": "Memory",
+      "description": "If this stays at 0 B on a Raspberry Pi, the kernel doesn't have memory cgroups enabled. Add `cgroup_enable=memory cgroup_memory=1` to /boot/firmware/cmdline.txt and reboot. Verify with `docker stats` showing non-zero MEM USAGE.",
       "type": "stat",
       "targets": [{ "expr": "logos_container_memory_bytes", "refId": "A" }]
     },
@@ -137,6 +138,7 @@
       "id": 212,
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
       "title": "Memory Usage",
+      "description": "Flat line at 0 B on Raspberry Pi means memory cgroups aren't enabled in the kernel. Add `cgroup_enable=memory cgroup_memory=1` to /boot/firmware/cmdline.txt and reboot. `docker stats` showing 0B/0B for MEM is the same root cause.",
       "type": "timeseries",
       "targets": [
         { "expr": "logos_container_memory_bytes", "legendFormat": "Used", "refId": "A" },
