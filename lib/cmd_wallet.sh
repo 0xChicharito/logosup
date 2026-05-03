@@ -94,7 +94,7 @@ _wallet_balance() {
             balance="$(echo "$WALLET_BODY" | sed -E 's/.*"balance":([0-9]+).*/\1/')"
             # Count notes by counting the entries inside "notes":{...}
             note_count="$(echo "$WALLET_BODY" | grep -oE '"notes":\{[^}]*\}' | grep -oE '"[0-9a-f]{64}":' | wc -l | tr -d ' ')"
-            log_info "${DIM}${key:0:16}...${RESET}  balance: ${BOLD}${balance}${RESET}  notes: ${note_count}"
+            log_info "${DIM}${key}${RESET}  balance: ${BOLD}${balance}${RESET}  notes: ${note_count}"
             if [[ "$balance" =~ ^[0-9]+$ ]]; then
                 total=$((total + balance))
                 any_ok=true
@@ -106,15 +106,15 @@ _wallet_balance() {
                         local nid nval
                         nid="$(echo "$entry" | sed -E 's/^"([0-9a-f]{64})":.*/\1/')"
                         nval="$(echo "$entry" | sed -E 's/.*:([0-9]+)$/\1/')"
-                        log_dim "    note ${nid:0:16}...  ${nval}"
+                        log_dim "    note ${nid}  ${nval}"
                     done
             fi
         elif echo "$WALLET_BODY" | grep -qi "not found"; then
-            log_info "${DIM}${key:0:16}...${RESET}  balance: ${BOLD}0${RESET} ${DIM}(no funds received yet)${RESET}"
+            log_info "${DIM}${key}${RESET}  balance: ${BOLD}0${RESET} ${DIM}(no funds received yet)${RESET}"
         else
             local err
             err="$(wallet_squash_body "$WALLET_BODY" 120 "$WALLET_HTTP_CODE")"
-            log_info "${DIM}${key:0:16}...${RESET}  balance: ${DIM}error (HTTP ${WALLET_HTTP_CODE}): ${err}${RESET}"
+            log_info "${DIM}${key}${RESET}  balance: ${DIM}error (HTTP ${WALLET_HTTP_CODE}): ${err}${RESET}"
             if [[ "$WALLET_HTTP_CODE" == "408" ]]; then
                 log_dim "    (timeout — node may be busy; retry, or check ${BOLD}logos-node logs${RESET})"
             fi
@@ -218,11 +218,11 @@ _wallet_transfer() {
     fi
 
     echo ""
-    log_info "From:      ${DIM}${from_key:0:16}...${RESET}"
-    log_info "To:        ${DIM}${recipient:0:16}...${RESET}"
+    log_info "From:      ${DIM}${from_key}${RESET}"
+    log_info "To:        ${DIM}${recipient}${RESET}"
     log_info "Amount:    ${BOLD}${amount}${RESET}"
-    log_info "Change to: ${DIM}${change_key:0:16}...${RESET}"
-    log_dim "Tip:       ${tip:0:16}..."
+    log_info "Change to: ${DIM}${change_key}${RESET}"
+    log_dim "Tip:       ${tip}"
     echo ""
 
     if [[ "$skip_confirm" != "true" ]]; then
@@ -242,9 +242,14 @@ _wallet_transfer() {
         log_success "Transaction submitted"
         log_info "Hash: ${BOLD}${tx_hash}${RESET}"
         if [[ -n "${LOGOS_DASHBOARD_URL:-}" ]]; then
-            log_dim "Track: ${LOGOS_DASHBOARD_URL%/}/web/explorer/tx/${tx_hash}"
+            # LOGOS_DASHBOARD_URL already ends in /web/ for testnet
+            # (https://testnet.blockchain.logos.co/web/), so just append
+            # explorer/tx/<hash>. The previous code added /web/ a second
+            # time, producing /web/web/explorer/tx/.
+            local base="${LOGOS_DASHBOARD_URL%/}"
+            log_dim "Track: ${base}/explorer/tx/${tx_hash}"
         fi
-        log_dim "Look up later: ${BOLD}logos-node wallet tx ${tx_hash:0:16}...${RESET}"
+        log_dim "Look up later: ${BOLD}logos-node wallet tx ${tx_hash}${RESET}"
         echo ""
     else
         log_error "Transfer failed (HTTP ${WALLET_HTTP_CODE})"

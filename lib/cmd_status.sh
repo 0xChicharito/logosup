@@ -87,13 +87,13 @@ cmd_status() {
             if [[ "$WALLET_HTTP_CODE" == "200" && -n "$WALLET_BODY" ]]; then
                 local balance
                 balance="$(echo "$WALLET_BODY" | sed -E 's/.*"balance":([0-9]+).*/\1/')"
-                log_info "${DIM}${key:0:16}...${RESET}  balance: ${BOLD}${balance}${RESET}"
+                log_info "${DIM}${key}${RESET}  balance: ${BOLD}${balance}${RESET}"
             elif [[ "$WALLET_HTTP_CODE" == "200" ]]; then
-                log_info "${DIM}${key:0:16}...${RESET}  balance: ${BOLD}0${RESET}"
+                log_info "${DIM}${key}${RESET}  balance: ${BOLD}0${RESET}"
             elif echo "$WALLET_BODY" | grep -qi "not found"; then
-                log_info "${DIM}${key:0:16}...${RESET}  balance: ${BOLD}0${RESET} ${DIM}(no funds received yet)${RESET}"
+                log_info "${DIM}${key}${RESET}  balance: ${BOLD}0${RESET} ${DIM}(no funds received yet)${RESET}"
             else
-                log_info "${DIM}${key:0:16}...${RESET}  balance: ${DIM}error (HTTP ${WALLET_HTTP_CODE}): $(wallet_squash_body "$WALLET_BODY" 120 "$WALLET_HTTP_CODE")${RESET}"
+                log_info "${DIM}${key}${RESET}  balance: ${DIM}error (HTTP ${WALLET_HTTP_CODE}): $(wallet_squash_body "$WALLET_BODY" 120 "$WALLET_HTTP_CODE")${RESET}"
             fi
         done <<< "$keys"
     fi
