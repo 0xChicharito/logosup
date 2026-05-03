@@ -241,13 +241,18 @@ _wallet_transfer() {
         echo ""
         log_success "Transaction submitted"
         log_info "Hash: ${BOLD}${tx_hash}${RESET}"
+        # Note: the upstream wallet API returns `mantle_tx.hash()` here —
+        # the inner mantle-tx hash, not the on-chain signed-tx hash that
+        # the explorer indexes by. So the hash above won't match the
+        # explorer's tx-id and a direct `/explorer/transactions/<hash>`
+        # URL with this hash returns 404. Operator can still navigate
+        # the explorer manually (e.g. by recipient address) to find the
+        # on-chain entry. Until upstream exposes both hashes (or unifies
+        # them), we don't auto-generate the explorer link to avoid
+        # producing a known-broken URL.
         if [[ -n "${LOGOS_DASHBOARD_URL:-}" ]]; then
-            # LOGOS_DASHBOARD_URL already ends in /web/ for testnet
-            # (https://testnet.blockchain.logos.co/web/), so just append
-            # explorer/tx/<hash>. The previous code added /web/ a second
-            # time, producing /web/web/explorer/tx/.
             local base="${LOGOS_DASHBOARD_URL%/}"
-            log_dim "Track: ${base}/explorer/tx/${tx_hash}"
+            log_dim "Explorer: ${base}/explorer/  (search by recipient — the hash above is the mantle-tx hash and may differ from the on-chain signed-tx hash)"
         fi
         log_dim "Look up later: ${BOLD}logos-node wallet tx ${tx_hash}${RESET}"
         echo ""
