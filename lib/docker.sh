@@ -231,6 +231,14 @@ docker_init_config() {
         # OTel collector. Idempotent — only patches `metrics: None`.
         patch_user_config_for_otlp "$config_path"
 
+        # Disable redundant disk-based tracing logs. By default the node's
+        # tracing module writes ~10GB/hour of DEBUG output to data/<prefix>.<hour>
+        # files in the data dir, ON TOP OF streaming the same content to stdout
+        # (which Docker captures with caps). Net effect: 100GB+ disk in a day,
+        # the chain DB shares the same partition, operators get squeezed out.
+        # Stdout via `logos-node logs` is sufficient for diagnostics. Idempotent.
+        patch_user_config_for_log_files "$config_path"
+
         log_success "Node configuration generated at $config_path"
         return 0
     else
@@ -263,6 +271,54 @@ patch_user_config_for_otlp() {
     ' "$config_path" > "${config_path}.tmp" && mv "${config_path}.tmp" "$config_path"
     chmod 600 "$config_path"
     log_dim "Enabled OTLP metrics push to logos-otel (for monitoring stack)"
+}
+
+# Disable the tracing module's disk-based file output. The default config
+# emits the SAME log lines to both stdout (which Docker captures, capped via
+# our compose `logging:` block) AND to per-hour files in the data dir, which
+# are NOT capped — DEBUG-level logs hit ~10GB/hour and fill any operator's
+# disk in <a day. Stdout suffices; remove the file output.
+#
+# Replaces:
+#     logger:
+#       file:
+#         directory: .
+#         prefix: '...'
+#       stdout: true
+#       ...
+# with:
+#     logger:
+#       file: null
+#       stdout: true
+#       ...
+#
+# Idempotent: only fires when the file: block has child fields.
+patch_user_config_for_log_files() {
+    local config_path="$1"
+    [[ -f "$config_path" ]] || return 0
+    # Detect the multi-line file: block. If file: is already null (or absent)
+    # we don't need to patch.
+    grep -qE '^[[:space:]]+file:[[:space:]]*$' "$config_path" || return 0
+
+    awk '
+      /^[[:space:]]+file:[[:space:]]*$/ {
+        match($0, /^[[:space:]]+/)
+        parent_indent = RLENGTH
+        print substr($0, 1, parent_indent) "file: null"
+        in_file_block = 1
+        next
+      }
+      in_file_block {
+        match($0, /^[[:space:]]+/)
+        if (RLENGTH > parent_indent) {
+          next   # skip indented children of file:
+        }
+        in_file_block = 0
+      }
+      { print }
+    ' "$config_path" > "${config_path}.tmp" && mv "${config_path}.tmp" "$config_path"
+    chmod 600 "$config_path"
+    log_dim "Disabled disk-based tracing logs (redundant with stdout/Docker)"
 }
 
 # Start the node

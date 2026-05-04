@@ -77,29 +77,23 @@ cmd_status() {
     keys="$(get_wallet_keys 2>/dev/null)"
 
     if [[ -n "$keys" ]]; then
+        source "$LOGOS_NODE_LIB/wallet.sh"
         log_step "Wallet"
         while IFS= read -r key; do
-            local balance_resp http_code
-            # Use -s (no -f) so we get the body even on HTTP errors
-            balance_resp="$(curl -s -w '\n%{http_code}' "${api_url}/wallet/${key}/balance" 2>/dev/null)" || true
-            http_code="$(echo "$balance_resp" | tail -1)"
-            balance_resp="$(echo "$balance_resp" | sed '$d')"
+            # Bare call, then read WALLET_HTTP_CODE / WALLET_BODY globals.
+            # Don't use $(wallet_get_balance ...) — subshells lose the globals.
+            wallet_get_balance "$key"
 
-            if [[ "$http_code" == "200" && -n "$balance_resp" ]]; then
+            if [[ "$WALLET_HTTP_CODE" == "200" && -n "$WALLET_BODY" ]]; then
                 local balance
-                balance="$(echo "$balance_resp" | sed -E 's/.*"balance":([0-9]+).*/\1/')"
-                log_info "${DIM}${key:0:16}...${RESET}  balance: ${BOLD}${balance}${RESET}"
-            elif [[ "$http_code" == "200" ]]; then
-                log_info "${DIM}${key:0:16}...${RESET}  balance: ${BOLD}0${RESET}"
-            elif echo "$balance_resp" | grep -qi "not found"; then
-                log_info "${DIM}${key:0:16}...${RESET}  balance: ${BOLD}0${RESET} ${DIM}(no funds received yet)${RESET}"
+                balance="$(echo "$WALLET_BODY" | sed -E 's/.*"balance":([0-9]+).*/\1/')"
+                log_info "${DIM}${key}${RESET}  balance: ${BOLD}${balance}${RESET}"
+            elif [[ "$WALLET_HTTP_CODE" == "200" ]]; then
+                log_info "${DIM}${key}${RESET}  balance: ${BOLD}0${RESET}"
+            elif echo "$WALLET_BODY" | grep -qi "not found"; then
+                log_info "${DIM}${key}${RESET}  balance: ${BOLD}0${RESET} ${DIM}(no funds received yet)${RESET}"
             else
-                local err_msg
-                err_msg="$(echo "$balance_resp" | tr '\n' ' ' | sed 's/  */ /g' | cut -c1-120)"
-                if [[ -z "$err_msg" ]]; then
-                    err_msg="(empty response)"
-                fi
-                log_info "${DIM}${key:0:16}...${RESET}  balance: ${DIM}error (HTTP ${http_code}): ${err_msg}${RESET}"
+                log_info "${DIM}${key}${RESET}  balance: ${DIM}error (HTTP ${WALLET_HTTP_CODE}): $(wallet_squash_body "$WALLET_BODY" 120 "$WALLET_HTTP_CODE")${RESET}"
             fi
         done <<< "$keys"
     fi

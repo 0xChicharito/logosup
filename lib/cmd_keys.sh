@@ -24,12 +24,22 @@ _keys_help() {
     echo ""
     log_info "${BOLD}Usage:${RESET}"
     log_info "  logos-node keys                          Show public keys"
-    log_info "  logos-node keys backup|export [FILE]     Export keys to a file"
-    log_info "  logos-node keys restore|import <FILE>    Import keys into current config"
+    log_info "  logos-node keys backup|export [FILE]     Export wallet keys to a file"
+    log_info "  logos-node keys restore|import <FILE>    Splice wallet keys back into config"
     echo ""
-    log_info "${BOLD}Backup file contains:${RESET}"
-    log_info "  Public keys and their corresponding private keys."
-    log_info "  Keep this file safe — anyone with it can access your wallet."
+    log_info "${BOLD}What's in a backup file:${RESET}"
+    log_info "  A YAML containing only the key-bearing fields: ${DIM}wallet.known_keys${RESET},"
+    log_info "  ${DIM}kms.backend.keys${RESET} (the actual signing material as ${DIM}!Zk${RESET}/${DIM}!Ed25519${RESET}),"
+    log_info "  the libp2p ${DIM}node_key${RESET}, blend signing key ids, and funding-pk references."
+    log_info "  No peers, ports, monitoring config — just identity. ${BOLD}Anyone with this file can"
+    log_info "  spend your funds${RESET}; keep it offline / encrypted."
+    echo ""
+    log_info "${BOLD}Cross-version safe:${RESET} restore only touches the listed key paths. Network"
+    log_info "  settings, monitoring, log filters etc are preserved as-is. Backups taken on"
+    log_info "  one node version restore cleanly onto a different version."
+    echo ""
+    log_info "${BOLD}Dependencies:${RESET} python3 + PyYAML (pre-installed on most Linux/macOS)."
+    log_info "  If missing: ${DIM}sudo apt install python3-yaml${RESET}  /  ${DIM}pip3 install pyyaml${RESET}"
     echo ""
 }
 
@@ -66,6 +76,20 @@ _keys_show() {
     echo ""
 }
 
+_keys_check_python() {
+    if ! command -v python3 &>/dev/null; then
+        log_error "python3 is required for keys backup/restore but isn't installed."
+        log_info "Install: ${BOLD}sudo apt install python3${RESET}  /  ${BOLD}brew install python3${RESET}"
+        return 1
+    fi
+    if ! python3 -c "import yaml" &>/dev/null; then
+        log_error "PyYAML (python3-yaml) is required but isn't installed."
+        log_info "Install: ${BOLD}sudo apt install python3-yaml${RESET}  /  ${BOLD}pip3 install pyyaml${RESET}"
+        return 1
+    fi
+    return 0
+}
+
 _keys_backup() {
     local config_path
     config_path="$(get_user_config_path)"
@@ -74,15 +98,9 @@ _keys_backup() {
         die "Node configuration not found at $config_path\nRun 'logos-node install' first."
     fi
 
-    local backup_file="${1:-logos-node-keys.backup}"
+    _keys_check_python || return 1
 
-    # Extract the full keys block
-    local keys_block
-    keys_block="$(get_wallet_keys_full)"
-
-    if [[ -z "$keys_block" ]]; then
-        die "No keys found in configuration"
-    fi
+    local backup_file="${1:-logos-node-keys.backup.yaml}"
 
     if [[ -f "$backup_file" ]]; then
         log_warn "File already exists: $backup_file"
@@ -92,31 +110,38 @@ _keys_backup() {
         fi
     fi
 
-    # Write backup with header
-    cat > "$backup_file" << BACKUP
-# Logos Node wallet keys backup
-# Created: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-# WARNING: This file contains private keys. Keep it safe!
-#
-# Restore with: logos-node keys restore $backup_file
-#
-${keys_block}
-BACKUP
+    # Extract just the key paths into a portable YAML. The keys_io.py helper
+    # walks a fixed list of key-bearing paths (network.node_key, kms.*, wallet.*,
+    # blend.*.kms_id, leader/sdp funding_pk) so the backup is host-agnostic and
+    # cross-version: future schema changes outside those paths don't break
+    # restoration.
+    if ! python3 "$LOGOS_NODE_LIB/keys_io.py" extract "$config_path" > "$backup_file"; then
+        rm -f "$backup_file"
+        die "Failed to extract keys from $config_path"
+    fi
     chmod 600 "$backup_file"
 
+    if [[ ! -s "$backup_file" ]]; then
+        rm -f "$backup_file"
+        die "Backup file is empty — no key fields found in config"
+    fi
+
     echo ""
-    log_success "Keys backed up to ${BOLD}${backup_file}${RESET}"
+    log_success "Wallet keys backed up to ${BOLD}${backup_file}${RESET}"
     echo ""
 
-    # Show what was backed up
+    # Show the public keys in the backup
     local count=0
     while IFS= read -r key; do
+        [[ -z "$key" ]] && continue
         count=$((count + 1))
         log_info "  Key ${count}: ${DIM}${key:0:16}...${RESET}"
     done <<< "$(get_wallet_keys)"
 
     echo ""
-    log_warn "This file contains your private keys. Store it securely!"
+    log_warn "This file contains your KMS private keys (full signing material)."
+    log_warn "Store it securely — anyone with this file controls your wallet."
+    log_dim "Restore with: ${BOLD}logos-node keys restore $backup_file${RESET}"
     echo ""
 }
 
@@ -126,13 +151,15 @@ _keys_restore() {
     if [[ -z "$backup_file" ]]; then
         log_error "Missing file argument."
         log_info "Usage:   logos-node keys import <FILE>     (or: keys restore <FILE>)"
-        log_info "Example: logos-node keys import logos-node-keys.backup"
+        log_info "Example: logos-node keys import logos-node-keys.backup.yaml"
         return 1
     fi
 
     if [[ ! -f "$backup_file" ]]; then
         die "Backup file not found: $backup_file"
     fi
+
+    _keys_check_python || return 1
 
     local config_path
     config_path="$(get_user_config_path)"
@@ -141,78 +168,72 @@ _keys_restore() {
         die "Node configuration not found at $config_path\nRun 'logos-node install' first, then restore keys."
     fi
 
-    # Parse keys from backup file (skip comments, find known_keys block)
-    local new_keys
-    new_keys="$(awk '/^[[:space:]]*known_keys:/{found=1; print; next} found && /^[[:space:]]+[a-f0-9]+:/{print; next} found{exit}' "$backup_file")"
-
-    if [[ -z "$new_keys" ]]; then
-        die "No valid keys found in backup file"
+    # Sanity-check the backup. Both keys-only backups and full-config backups
+    # have wallet: and kms: at the top level, so this guard catches truly
+    # unrelated files (and the broken older format that only stored
+    # known_keys without kms).
+    if ! grep -qE "^wallet:" "$backup_file" || ! grep -qE "^kms:" "$backup_file"; then
+        log_error "Backup file is missing top-level ${BOLD}wallet:${RESET} and/or ${BOLD}kms:${RESET} sections."
+        log_dim "Old-style backups (just the known_keys block) can't be restored — they don't include the KMS signing material that the keys depend on."
+        return 1
     fi
 
-    # Count keys being restored
-    local count
-    count="$(echo "$new_keys" | grep -c '[a-f0-9]\{64\}' || true)"
-
     echo ""
-    log_step "Restoring ${count} key(s) from backup"
+    log_step "Restore wallet keys from $backup_file"
     echo ""
 
-    # Show current vs new
+    log_info "Backup contains keys:"
+    awk '/^[[:space:]]*known_keys:/{found=1; next} found && /^[[:space:]]+[0-9a-f]{64}:/{print "  " substr($1, 1, 17) "..."; next} found{exit}' "$backup_file"
+    echo ""
+
     local current_keys
     current_keys="$(get_wallet_keys 2>/dev/null)"
     if [[ -n "$current_keys" ]]; then
-        log_info "Current keys in config:"
+        log_info "Current config has keys:"
         while IFS= read -r key; do
+            [[ -z "$key" ]] && continue
             log_info "  ${DIM}${key:0:16}...${RESET}"
         done <<< "$current_keys"
         echo ""
     fi
 
-    log_info "Keys from backup:"
-    echo "$new_keys" | awk '/[a-f0-9]{64}:/{gsub(/^[[:space:]]+/, ""); split($0, a, ":"); printf "  %s...\n", substr(a[1], 1, 16)}'
+    log_warn "Wallet keys + KMS material from the backup will replace those in the current config."
+    log_dim "Other config (peers, ports, monitoring, log levels) is preserved."
+    log_dim "Previous config will be saved to ${BOLD}user_config.yaml.pre-restore-<timestamp>${RESET} for rollback."
     echo ""
-
-    log_warn "This will replace the keys in your node configuration."
-    if ! confirm "Proceed with restore?"; then
+    if ! confirm "Proceed with restore?" "n"; then
         log_info "Restore cancelled"
         return 0
     fi
 
-    # Replace known_keys block in config
-    # Strategy: use awk to replace the known_keys section
-    local tmp_config="${config_path}.tmp"
+    # Save current config with timestamp for unambiguous rollback
+    local rollback="${config_path}.pre-restore-$(date +%Y%m%d-%H%M%S)"
+    cp "$config_path" "$rollback"
+    chmod 600 "$rollback"
 
-    awk -v new_keys="$new_keys" '
-    /^[[:space:]]*known_keys:/ {
-        # Print the new keys block
-        print new_keys
-        # Skip old known_keys entries
-        found=1
-        next
-    }
-    found && /^[[:space:]]+[a-f0-9]+:/ { next }
-    found { found=0 }
-    { print }
-    ' "$config_path" > "$tmp_config"
-
-    # Verify the temp file looks sane
-    if [[ ! -s "$tmp_config" ]]; then
-        rm -f "$tmp_config"
-        die "Failed to generate updated config. Original config is unchanged."
+    # Splice via the python helper. Only key paths are written; everything
+    # else in the current config is preserved. Cross-version safe.
+    local tmp="${config_path}.tmp"
+    if ! python3 "$LOGOS_NODE_LIB/keys_io.py" inject "$backup_file" "$config_path" "$tmp"; then
+        rm -f "$tmp"
+        die "Failed to inject keys into config (rollback at $rollback)"
     fi
 
-    # Swap files
-    cp "$config_path" "${config_path}.pre-restore"
-    mv "$tmp_config" "$config_path"
+    if [[ ! -s "$tmp" ]]; then
+        rm -f "$tmp"
+        die "Inject produced empty output (rollback at $rollback)"
+    fi
+
+    mv "$tmp" "$config_path"
     chmod 600 "$config_path"
 
     echo ""
-    log_success "Keys restored successfully"
-    log_info "Previous config saved to ${DIM}${config_path}.pre-restore${RESET}"
+    log_success "Wallet keys restored"
+    log_info "Previous config saved to ${DIM}${rollback}${RESET}"
     echo ""
 
     if docker_is_running 2>/dev/null; then
-        log_info "Restart the node to use the restored keys:"
+        log_warn "Restart the node to use the restored keys:"
         log_info "  ${BOLD}logos-node stop && logos-node start${RESET}"
     fi
     echo ""

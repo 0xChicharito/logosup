@@ -41,6 +41,20 @@ confirm() {
         prompt="$prompt [y/N] "
     fi
 
+    # Pre-flight: verify /dev/tty is openable for read. On a non-interactive
+    # session (e.g. `ssh host 'cmd'` without -t, or stdout-only pipelines),
+    # /dev/tty doesn't exist — without this guard, the `< /dev/tty` redirect
+    # would fail silently and `confirm` would proceed with the default answer,
+    # which in destructive contexts (transfer, reset) means we'd submit
+    # unattended. Fail-closed instead: cancel the operation and tell the
+    # operator to use --yes if they really meant to skip the prompt.
+    if ! { exec 3< /dev/tty; } 2>/dev/null; then
+        log_warn "Non-interactive context (no /dev/tty available) — cancelled: $1"
+        log_dim "Pass ${BOLD}--yes${RESET}${DIM} (or ${BOLD}-y${RESET}${DIM}) to skip the prompt in scripts."
+        return 1
+    fi
+    exec 3<&-
+
     echo -en "${BOLD}?${RESET} ${prompt}"
     # Read from /dev/tty so prompts work when run via sg, pipe, etc.
     read -r yn < /dev/tty 2>/dev/null || yn=""
