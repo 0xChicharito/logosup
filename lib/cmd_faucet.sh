@@ -22,7 +22,7 @@ cmd_faucet() {
             echo ""
         fi
     else
-        log_warn "No node configuration found. Run 'logos-node install' first."
+        log_warn "No node configuration found. Run 'logosup install' first."
         echo ""
     fi
 
@@ -30,7 +30,7 @@ cmd_faucet() {
     log_info "  1. Open the faucet URL above"
     log_info "  2. Paste one of your wallet keys into 'Destination Public Key (Hex)'"
     log_info "  3. Click 'Request Funds'"
-    log_info "  4. Wait 1-2 minutes, then check balance with: ${BOLD}logos-node status${RESET}"
+    log_info "  4. Wait 1-2 minutes, then check balance with: ${BOLD}logosup status${RESET}"
     echo ""
     log_info "Note: Your UTXO must age ~3.5 hours before you can participate in consensus."
     echo ""

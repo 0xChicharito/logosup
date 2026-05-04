@@ -28,18 +28,18 @@ _wallet_help() {
     log_step "Base-layer wallet"
     echo ""
     log_info "${BOLD}Usage:${RESET}"
-    log_info "  logos-node wallet balance [<key>]              Show balance for one or all keys"
-    log_info "  logos-node wallet transfer <to_pk> <amount>    Send funds to a recipient"
+    log_info "  logosup wallet balance [<key>]              Show balance for one or all keys"
+    log_info "  logosup wallet transfer <to_pk> <amount>    Send funds to a recipient"
     log_info "                            [--from <key>]       Explicit funding key"
     log_info "                            [--change <key>]     Where leftover change goes"
     log_info "                            [--yes]              Skip confirmation"
-    log_info "  logos-node wallet tx <tx_hash>                 Look up a transaction"
+    log_info "  logosup wallet tx <tx_hash>                 Look up a transaction"
     echo ""
     log_info "${BOLD}Examples:${RESET}"
-    log_info "  logos-node wallet balance"
-    log_info "  logos-node wallet transfer 8a3b7f...c2d1 100"
-    log_info "  logos-node wallet send 8a3b7f...c2d1 100 --from 793055d1..."
-    log_info "  logos-node wallet tx 0x4d8e2a..."
+    log_info "  logosup wallet balance"
+    log_info "  logosup wallet transfer 8a3b7f...c2d1 100"
+    log_info "  logosup wallet send 8a3b7f...c2d1 100 --from 793055d1..."
+    log_info "  logosup wallet tx 0x4d8e2a..."
     echo ""
     log_dim "All cryptography happens inside the node. The CLI is a thin HTTP wrapper."
     echo ""
@@ -69,14 +69,14 @@ _wallet_balance() {
             keys="$(get_wallet_keys 2>/dev/null | grep -i "^${target_key}" || true)"
             if [[ -z "$keys" ]]; then
                 log_error "No known_key matches: $target_key"
-                log_info "List your keys: ${BOLD}logos-node keys${RESET}"
+                log_info "List your keys: ${BOLD}logosup keys${RESET}"
                 return 1
             fi
         fi
     else
         keys="$(get_wallet_keys 2>/dev/null)" || true
         if [[ -z "$keys" ]]; then
-            log_warn "No wallet keys found. Run ${BOLD}logos-node install${RESET} first."
+            log_warn "No wallet keys found. Run ${BOLD}logosup install${RESET} first."
             return 1
         fi
     fi
@@ -116,7 +116,7 @@ _wallet_balance() {
             err="$(wallet_squash_body "$WALLET_BODY" 120 "$WALLET_HTTP_CODE")"
             log_info "${DIM}${key}${RESET}  balance: ${DIM}error (HTTP ${WALLET_HTTP_CODE}): ${err}${RESET}"
             if [[ "$WALLET_HTTP_CODE" == "408" ]]; then
-                log_dim "    (timeout — node may be busy; retry, or check ${BOLD}logos-node logs${RESET})"
+                log_dim "    (timeout — node may be busy; retry, or check ${BOLD}logosup logs${RESET})"
             fi
         fi
     done <<< "$keys"
@@ -155,7 +155,7 @@ _wallet_transfer() {
     done
 
     if [[ -z "$recipient" || -z "$amount" ]]; then
-        log_error "Usage: logos-node wallet transfer <to_pk> <amount> [--from <key>] [--change <key>] [--yes]"
+        log_error "Usage: logosup wallet transfer <to_pk> <amount> [--from <key>] [--change <key>] [--yes]"
         return 1
     fi
 
@@ -176,7 +176,7 @@ _wallet_transfer() {
     tip="$(wallet_get_tip)" || true
     if [[ -z "$tip" ]]; then
         log_error "Could not fetch chain tip from ${BOLD}$(wallet_api_url)/cryptarchia/info${RESET}"
-        log_info "Make sure the node is running and reachable: ${BOLD}logos-node status${RESET}"
+        log_info "Make sure the node is running and reachable: ${BOLD}logosup status${RESET}"
         return 1
     fi
 
@@ -241,7 +241,7 @@ _wallet_transfer() {
         echo ""
         log_success "Transaction submitted to mempool"
         log_info "Hash:   ${BOLD}${tx_hash}${RESET}"
-        log_info "Lookup: ${BOLD}logos-node wallet tx ${tx_hash}${RESET}"
+        log_info "Lookup: ${BOLD}logosup wallet tx ${tx_hash}${RESET}"
         if [[ -n "${LOGOS_DASHBOARD_URL:-}" ]]; then
             local base="${LOGOS_DASHBOARD_URL%/}"
             log_info "Explorer: ${base}/explorer/   ${DIM}(uses a different id scheme; can't be auto-linked)${RESET}"
@@ -259,7 +259,7 @@ _wallet_transfer() {
         log_error "Transfer failed (HTTP ${WALLET_HTTP_CODE})"
         log_info "$(wallet_squash_body "$WALLET_BODY" 240 "$WALLET_HTTP_CODE")"
         if [[ "$WALLET_HTTP_CODE" == "408" ]]; then
-            log_dim "Timeout — the node may be busy. Retry, or check ${BOLD}logos-node logs${RESET}"
+            log_dim "Timeout — the node may be busy. Retry, or check ${BOLD}logosup logs${RESET}"
         fi
         return 1
     fi
@@ -268,7 +268,7 @@ _wallet_transfer() {
 _wallet_tx() {
     local hash="${1:-}"
     if [[ -z "$hash" ]]; then
-        log_error "Usage: logos-node wallet tx <tx_hash>"
+        log_error "Usage: logosup wallet tx <tx_hash>"
         return 1
     fi
     # Strip 0x prefix if present

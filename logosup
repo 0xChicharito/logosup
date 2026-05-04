@@ -38,7 +38,7 @@ load_config
 # ── Help ──────────────────────────────────────────────────────────────
 print_usage() {
     print_banner
-    echo -e "${BOLD}Usage:${RESET} logos-node <command> [options]"
+    echo -e "${BOLD}Usage:${RESET} logosup <command> [options]"
     echo ""
     echo -e "${BOLD}Commands:${RESET}"
     echo -e "  ${CYAN}install${RESET}    Install and set up the Logos Blockchain node"
@@ -57,18 +57,18 @@ print_usage() {
     echo -e "  ${CYAN}help${RESET}       Show this help message"
     echo ""
     echo -e "${BOLD}Examples:${RESET}"
-    echo "  logos-node install                    # First-time setup"
-    echo "  logos-node start                      # Start the node"
-    echo "  logos-node status                     # Check node health"
-    echo "  logos-node logs -f                    # Follow logs"
-    echo "  logos-node update                     # Update node + CLI"
-    echo "  logos-node update -b dev              # Switch CLI to a branch"
-    echo "  logos-node reset                      # Wipe data + regen config (after breaking release)"
-    echo "  logos-node wallet balance             # Show wallet balances"
-    echo "  logos-node wallet transfer <to> 100   # Send 100 to recipient"
-    echo "  logos-node monitor auth on            # Require Grafana login"
-    echo "  logos-node inscribe                   # Inscribe text on-chain"
-    echo "  logos-node security                   # Check server security"
+    echo "  logosup install                    # First-time setup"
+    echo "  logosup start                      # Start the node"
+    echo "  logosup status                     # Check node health"
+    echo "  logosup logs -f                    # Follow logs"
+    echo "  logosup update                     # Update node + CLI"
+    echo "  logosup update -b dev              # Switch CLI to a branch"
+    echo "  logosup reset                      # Wipe data + regen config (after breaking release)"
+    echo "  logosup wallet balance             # Show wallet balances"
+    echo "  logosup wallet transfer <to> 100   # Send 100 to recipient"
+    echo "  logosup monitor auth on            # Require Grafana login"
+    echo "  logosup inscribe                   # Inscribe text on-chain"
+    echo "  logosup security                   # Check server security"
     echo ""
     echo -e "${BOLD}Config:${RESET} $LOGOS_NODE_DIR"
     echo ""
@@ -84,7 +84,7 @@ case "$COMMAND" in
         exit 0
         ;;
     version|-v|--version)
-        echo "logos-node CLI v${LOGOS_NODE_CLI_VERSION}"
+        echo "logosup CLI v${LOGOS_NODE_CLI_VERSION}"
         echo "Node version: ${LOGOS_NODE_VERSION:-not installed}"
         exit 0
         ;;

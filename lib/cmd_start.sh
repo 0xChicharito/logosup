@@ -11,17 +11,17 @@ cmd_start() {
     compose_path="$(get_compose_path)"
 
     if [[ ! -f "$config_path" ]]; then
-        die "Node configuration not found at $config_path\nRun 'logos-node install' first."
+        die "Node configuration not found at $config_path\nRun 'logosup install' first."
     fi
 
     if [[ ! -f "$compose_path" ]]; then
-        die "Docker compose file not found. Run 'logos-node install' first."
+        die "Docker compose file not found. Run 'logosup install' first."
     fi
 
     if docker_is_running; then
         log_warn "Logos Node is already running"
-        log_info "Use 'logos-node status' to check node status"
-        log_info "Use 'logos-node stop' to stop, then 'logos-node start' to restart"
+        log_info "Use 'logosup status' to check node status"
+        log_info "Use 'logosup stop' to stop, then 'logosup start' to restart"
         return 0
     fi
 
@@ -45,9 +45,9 @@ cmd_start() {
             log_error "Port ${conflict_port:-} is already in use by another process."
             log_info "Find what's using it:  ${BOLD}sudo lsof -i :${conflict_port:-${LOGOS_API_PORT}} | grep LISTEN${RESET}"
             log_info "Or change the port:    ${BOLD}Edit LOGOS_API_PORT in $LOGOS_SETTINGS_FILE${RESET}"
-            log_info "Then regenerate:       ${BOLD}logos-node update node${RESET}"
+            log_info "Then regenerate:       ${BOLD}logosup update node${RESET}"
         else
-            log_error "Failed to start node. Check 'logos-node logs' for details."
+            log_error "Failed to start node. Check 'logosup logs' for details."
         fi
         return 1
     fi
@@ -65,8 +65,8 @@ cmd_start() {
         echo ""
         log_warn "Node started but health check hasn't passed yet"
         log_info "This is normal during initial sync. The node may take a few minutes."
-        log_info "Check progress with: ${BOLD}logos-node status${RESET}"
-        log_info "View logs with:      ${BOLD}logos-node logs${RESET}"
+        log_info "Check progress with: ${BOLD}logosup status${RESET}"
+        log_info "View logs with:      ${BOLD}logosup logs${RESET}"
     fi
 
     # Start monitoring if compose file exists
@@ -85,7 +85,7 @@ cmd_start() {
     fi
 
     echo ""
-    log_info "Check node status: ${BOLD}logos-node status${RESET}"
+    log_info "Check node status: ${BOLD}logosup status${RESET}"
 }
 
 _show_brief_status() {

@@ -74,7 +74,7 @@ _set_defaults() {
     : "${LOGOS_DOCKER_IMAGE:=logos-node}"
     : "${LOGOS_CONTAINER_NAME:=logos-node}"
     : "${LOGOS_NODE_REPO:=logos-blockchain/logos-blockchain}"
-    : "${LOGOS_CLI_REPO:=shayanb/logos-node}"
+    : "${LOGOS_CLI_REPO:=logosnode/logosup}"
     # Bootstrap peers for the current testnet release. Update these whenever the
     # network rotates peer IDs (e.g. on a breaking-genesis release).
     # Source: https://github.com/logos-blockchain/logos-blockchain/releases/tag/0.1.2

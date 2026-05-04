@@ -1,6 +1,8 @@
-# Logos Node
+# logosup
 
 A CLI tool for installing, running, and managing a [Logos Blockchain](https://logos.co/) node. Handles Docker setup, configuration, updates, and monitoring — so you can go from zero to a running node in minutes.
+
+> Previously `logos-node`. The CLI command was renamed to `logosup` in v0.4.0; the old `logos-node` and `logosnode` commands still work as aliases.
 
 > Built on the official [Logos Blockchain quickstart guide](https://github.com/logos-co/logos-docs/blob/main/docs/blockchain/quickstart-guide-for-the-logos-blockchain-node.md).
 
@@ -8,10 +10,10 @@ A CLI tool for installing, running, and managing a [Logos Blockchain](https://lo
 
 ```sh
 # Install the CLI
-curl -sL https://raw.githubusercontent.com/shayanb/logos-node/main/install.sh | bash
+curl -sL https://raw.githubusercontent.com/logosnode/logosup/main/install.sh | bash
 
 # Set up and start your node
-logos-node install
+logosup install
 ```
 
 The installer checks prerequisites, fetches the latest release, builds a Docker image with the node binary and ZK circuits, generates your configuration and wallet keys, and optionally sets up security hardening, monitoring, and starts the node.
@@ -28,42 +30,42 @@ The installer detects missing prerequisites and offers to install them automatic
 
 | Command | Description |
 |---------|-------------|
-| `logos-node install` | Full setup — download, build, configure, generate keys |
-| `logos-node start` | Start the node (+ monitoring if enabled) |
-| `logos-node stop` | Stop the node and monitoring |
-| `logos-node status` | Show consensus state, peers, wallet balances |
-| `logos-node logs` | Tail node logs (`-f`, `--tail=N`, `--since=1h`) |
-| `logos-node update` | Update node and/or CLI (`update node`, `update cli`, `update all`, `-b BRANCH`) |
-| `logos-node reset` | Wipe local data and regenerate config — use after a breaking release (`-y` for non-interactive) |
-| `logos-node keys` | Show, backup, or restore wallet keys (`keys backup`, `keys restore`) |
-| `logos-node wallet` | Send transfers, check balance, look up transactions (`wallet balance`, `wallet transfer`, `wallet tx`) |
-| `logos-node faucet` | Show faucet URL and keys, open in browser |
-| `logos-node inscribe` | Publish text inscriptions to the blockchain (interactive or piped) |
-| `logos-node monitor` | Manage monitoring dashboard (`monitor start`, `monitor stop`, `monitor status`, `monitor auth on/off`) |
-| `logos-node security` | Scan and harden server security (firewall, SSH, auto-updates, fail2ban) |
-| `logos-node version` | Show CLI and node versions |
-| `logos-node help` | Show help |
+| `logosup install` | Full setup — download, build, configure, generate keys |
+| `logosup start` | Start the node (+ monitoring if enabled) |
+| `logosup stop` | Stop the node and monitoring |
+| `logosup status` | Show consensus state, peers, wallet balances |
+| `logosup logs` | Tail node logs (`-f`, `--tail=N`, `--since=1h`) |
+| `logosup update` | Update node and/or CLI (`update node`, `update cli`, `update all`, `-b BRANCH`) |
+| `logosup reset` | Wipe local data and regenerate config — use after a breaking release (`-y` for non-interactive) |
+| `logosup keys` | Show, backup, or restore wallet keys (`keys backup`, `keys restore`) |
+| `logosup wallet` | Send transfers, check balance, look up transactions (`wallet balance`, `wallet transfer`, `wallet tx`) |
+| `logosup faucet` | Show faucet URL and keys, open in browser |
+| `logosup inscribe` | Publish text inscriptions to the blockchain (interactive or piped) |
+| `logosup monitor` | Manage monitoring dashboard (`monitor start`, `monitor stop`, `monitor status`, `monitor auth on/off`) |
+| `logosup security` | Scan and harden server security (firewall, SSH, auto-updates, fail2ban) |
+| `logosup version` | Show CLI and node versions |
+| `logosup help` | Show help |
 
-Both `logos-node` and `logosnode` work as the command name.
+The primary command is `logosup`. Aliases `logos-node` and `logosnode` are kept for backwards compatibility.
 
 ## What it automates
 
-`logos-node` automates the full [quickstart guide](https://github.com/logos-co/logos-docs/blob/main/docs/blockchain/quickstart-guide-for-the-logos-blockchain-node.md) flow:
+`logosup` automates the full [quickstart guide](https://github.com/logos-co/logos-docs/blob/main/docs/blockchain/quickstart-guide-for-the-logos-blockchain-node.md) flow:
 
-| Quickstart step | What `logos-node` does |
+| Quickstart step | What `logosup` does |
 |-----------------|----------------------|
 | Download node binary | Docker image downloads it at build time |
 | Download ZK circuits | Docker image downloads and installs them at build time |
 | Install circuits to `~/.logos-blockchain-circuits` | Baked into the image at `/app/circuits`, set via `LOGOS_BLOCKCHAIN_CIRCUITS` env var |
-| Run `logos-blockchain-node init` with bootstrap peers | `logos-node install` runs init inside the container, generates `user_config.yaml` with fresh keys |
-| Run the node | `logos-node start` launches the container via Docker Compose |
-| Find wallet keys | `logos-node keys` parses and displays them |
-| Request faucet tokens | `logos-node faucet` shows keys + faucet URL, opens browser |
-| Check consensus state (`/cryptarchia/info`) | `logos-node status` queries and displays it |
-| Check peer connectivity (`/network/info`) | `logos-node status` queries and displays it |
-| Check wallet balance | `logos-node status` shows balance for each key |
+| Run `logos-blockchain-node init` with bootstrap peers | `logosup install` runs init inside the container, generates `user_config.yaml` with fresh keys |
+| Run the node | `logosup start` launches the container via Docker Compose |
+| Find wallet keys | `logosup keys` parses and displays them |
+| Request faucet tokens | `logosup faucet` shows keys + faucet URL, opens browser |
+| Check consensus state (`/cryptarchia/info`) | `logosup status` queries and displays it |
+| Check peer connectivity (`/network/info`) | `logosup status` queries and displays it |
+| Check wallet balance | `logosup status` shows balance for each key |
 | Consensus participation | Automatic after UTXO ages ~3.5 hours |
-| Inscribe text on-chain | `logos-node inscribe` runs the text sequencer inside the container |
+| Inscribe text on-chain | `logosup inscribe` runs the text sequencer inside the container |
 
 ## Breaking-change migrations
 
@@ -71,8 +73,8 @@ Some Logos Blockchain releases reset the genesis block or otherwise make existin
 
 The CLI handles this for you:
 
-- **Auto-detected during update** — `logos-node update` checks the target version against a list of known breaking releases (maintained in `lib/releases.sh` as `LOGOS_BREAKING_VERSIONS`). If detected, it prompts for a one-step migration instead of the standard update.
-- **Manual** — run `logos-node reset` (or `logos-node reset -y` for non-interactive) at any time to wipe local data and regenerate config against the currently-installed node version.
+- **Auto-detected during update** — `logosup update` checks the target version against a list of known breaking releases (maintained in `lib/releases.sh` as `LOGOS_BREAKING_VERSIONS`). If detected, it prompts for a one-step migration instead of the standard update.
+- **Manual** — run `logosup reset` (or `logosup reset -y` for non-interactive) at any time to wipe local data and regenerate config against the currently-installed node version.
 
 What the migration does:
 
@@ -89,9 +91,9 @@ After migration you must re-claim faucet funds — the new chain starts from zer
 
 ### Installation flow
 
-1. **`install.sh`** — checks prerequisites (Docker, git, curl), offers to install anything missing, handles Docker group permissions, clones this repo to `~/.logos-node/cli/`, and creates `logos-node`/`logosnode` symlinks in your PATH.
+1. **`install.sh`** — checks prerequisites (Docker, git, curl), offers to install anything missing, handles Docker group permissions, clones this repo to `~/.logos-node/cli/`, and creates `logosup`/`logosnode` symlinks in your PATH.
 
-2. **`logos-node install`** — fetches the latest release from the [Logos Blockchain releases](https://github.com/logos-blockchain/logos-blockchain/releases/), builds a Docker image containing the node binary and ZK circuit files, runs `logos-blockchain-node init` inside the container to generate `user_config.yaml` with fresh cryptographic keys and auto-detected public IP, displays wallet keys with faucet instructions, then optionally runs security hardening (firewall, SSH, auto-updates, fail2ban), monitoring setup, and starts the node.
+2. **`logosup install`** — fetches the latest release from the [Logos Blockchain releases](https://github.com/logos-blockchain/logos-blockchain/releases/), builds a Docker image containing the node binary and ZK circuit files, runs `logos-blockchain-node init` inside the container to generate `user_config.yaml` with fresh cryptographic keys and auto-detected public IP, displays wallet keys with faucet instructions, then optionally runs security hardening (firewall, SSH, auto-updates, fail2ban), monitoring setup, and starts the node.
 
 ### Docker setup
 
@@ -107,9 +109,9 @@ The node runs inside a Docker container based on `debian:trixie-slim` (glibc 2.3
 
 ### After install
 
-1. **Get testnet tokens** — run `logos-node faucet` to see your wallet keys and the faucet URL. Visit the [testnet faucet](https://testnet.blockchain.logos.co/web/faucet/), paste one of your keys, and request funds.
+1. **Get testnet tokens** — run `logosup faucet` to see your wallet keys and the faucet URL. Visit the [testnet faucet](https://testnet.blockchain.logos.co/web/faucet/), paste one of your keys, and request funds.
 2. **Wait for UTXO maturity** — tokens must age approximately 3.5 hours (two epochs) before your node can participate in the consensus lottery.
-3. **Monitor** — use `logos-node status` to check consensus mode (Bootstrapping → Online), peer count, and wallet balances. Compare against the [testnet dashboard](https://testnet.blockchain.logos.co/web/).
+3. **Monitor** — use `logosup status` to check consensus mode (Bootstrapping → Online), peer count, and wallet balances. Compare against the [testnet dashboard](https://testnet.blockchain.logos.co/web/).
 
 ### Wallet (transfers, balance, tx lookup)
 
@@ -117,22 +119,22 @@ Once your node is funded, the `wallet` command sends transfers and inspects stat
 
 ```sh
 # Show balance + note count for every known_key, with total
-logos-node wallet balance
+logosup wallet balance
 
 # Per-note breakdown for one key
-logos-node wallet balance 793055d1...
+logosup wallet balance 793055d1...
 
 # Send 100 to a recipient (auto-picks a funding key with sufficient balance)
-logos-node wallet transfer 8a3b7f...c2d1 100
+logosup wallet transfer 8a3b7f...c2d1 100
 
 # Explicit funding/change keys, skip the confirmation prompt
-logos-node wallet send 8a3b7f...c2d1 100 --from 793055d1... --change 62156fa0... --yes
+logosup wallet send 8a3b7f...c2d1 100 --from 793055d1... --change 62156fa0... --yes
 
 # Look up a transaction by hash (0x prefix optional)
-logos-node wallet tx 4d8e2a...
+logosup wallet tx 4d8e2a...
 ```
 
-This is the **base-layer wallet** — the keys in `wallet.known_keys` of `user_config.yaml`, queried against `/wallet/{pk}/balance` and `/wallet/transactions/transfer-funds` on the node. The Logos Execution Zone (LEZ) wallet is a separate layer-2 wallet with its own account model, faucet, and binary — tracked separately ([#9](https://github.com/shayanb/logos-node/issues/9)).
+This is the **base-layer wallet** — the keys in `wallet.known_keys` of `user_config.yaml`, queried against `/wallet/{pk}/balance` and `/wallet/transactions/transfer-funds` on the node. The Logos Execution Zone (LEZ) wallet is a separate layer-2 wallet with its own account model, faucet, and binary — tracked separately ([#9](https://github.com/logosnode/logosup/issues/9)).
 
 A note on errors: if the wallet endpoint times out (HTTP 408), the CLI surfaces the API's response inline so you can see why. Retry the same command — don't auto-script retries since each transfer attempt is its own HTTP submission.
 
@@ -142,13 +144,13 @@ Once your node is running and funded, you can publish text inscriptions to the b
 
 ```sh
 # Interactive mode — type text and press Enter to inscribe each line
-logos-node inscribe
+logosup inscribe
 
 # Pipe mode — inscribe text from stdin
-echo "Hello World, from Lisbon Circle" | logos-node inscribe -
+echo "Hello World, from Lisbon Circle" | logosup inscribe -
 
 # From a file
-logos-node inscribe - < message.txt
+logosup inscribe - < message.txt
 ```
 
 The sequencer creates a signing key (`sequencer.key`) and checkpoint file (`sequencer.checkpoint`) in the node data directory for crash recovery. These persist across restarts.
@@ -158,9 +160,9 @@ The sequencer creates a signing key (`sequencer.key`) and checkpoint file (`sequ
 Run a Grafana dashboard with Prometheus metrics for your node:
 
 ```sh
-logos-node monitor start     # Start Grafana + Prometheus + metrics exporter
-logos-node monitor status    # Show status and Grafana URL
-logos-node monitor stop      # Stop the monitoring stack (node keeps running)
+logosup monitor start     # Start Grafana + Prometheus + metrics exporter
+logosup monitor status    # Show status and Grafana URL
+logosup monitor stop      # Stop the monitoring stack (node keeps running)
 ```
 
 Grafana is available at `https://localhost:3001` (or your server's IP on port 3001). A self-signed SSL certificate is generated automatically on first run (valid for 10 years) and stored at:
@@ -178,14 +180,14 @@ Two dashboards are provisioned:
 - **Logos Node** (Overview) — at-a-glance status: consensus mode, slot/height, peers, container health, wallet balances.
 - **Logos Node — Deep Dive** — native node metrics organized by service: consensus (block apply latency, proposals, fork count, finalized height), mempool (pending/added/removed), chainsync (request latency, downloads), orphans, blend (peers, message rates), KMS (sign requests/successes/failures), SDP (declarations, withdrawals), HTTP API and storage latency.
 
-Use the "Deep Dive" link in the top-right of the Overview dashboard to switch between them. No login required by default — enable with `logos-node monitor auth on`.
+Use the "Deep Dive" link in the top-right of the Overview dashboard to switch between them. No login required by default — enable with `logosup monitor auth on`.
 
 #### Architecture
 
 The monitoring stack runs as separate Docker containers alongside the node:
 
 ```
-logos-node ──OTLP/4317──▶ logos-otel ──:8889──▶ logos-prometheus ──▶ logos-grafana
+logosup ──OTLP/4317──▶ logos-otel ──:8889──▶ logos-prometheus ──▶ logos-grafana
                                                        ▲
 logos-exporter (Python: container/host stats, wallet balances) ─────┘
 ```
@@ -194,7 +196,7 @@ logos-exporter (Python: container/host stats, wallet balances) ─────�
 - **logos-exporter** (Python) covers what the node doesn't emit natively: container CPU/memory/network, host stats, wallet balances.
 - **logos-prometheus** scrapes both, **logos-grafana** visualizes.
 
-Native OTLP push is enabled automatically in `user_config.yaml` (`tracing.metrics: !Otlp`) by `logos-node install` / `logos-node reset`. If you've customized that field, your value is preserved.
+Native OTLP push is enabled automatically in `user_config.yaml` (`tracing.metrics: !Otlp`) by `logosup install` / `logosup reset`. If you've customized that field, your value is preserved.
 
 #### Troubleshooting: memory shows 0 B on Raspberry Pi
 
@@ -215,8 +217,8 @@ After reboot, `docker stats` should show real memory usage and the dashboard pan
 Harden your server with one command:
 
 ```sh
-logos-node security          # Scan and report findings
-logos-node security apply    # Apply fixes interactively (confirms each step)
+logosup security          # Scan and report findings
+logosup security apply    # Apply fixes interactively (confirms each step)
 ```
 
 Checks and fixes:
@@ -229,7 +231,7 @@ Checks and fixes:
 | **fail2ban** | Install with sshd jail — blocks IPs after 5 failed attempts for 1 hour |
 | **File permissions** | Ensure node directory is restricted (700) |
 
-Supports Debian/Ubuntu/Raspbian, Fedora/RHEL/CentOS/Rocky, and Arch Linux. Also offered during `logos-node install`.
+Supports Debian/Ubuntu/Raspbian, Fedora/RHEL/CentOS/Rocky, and Arch Linux. Also offered during `logosup install`.
 
 ## Configuration
 
@@ -285,14 +287,14 @@ Commands are modular bash scripts in `lib/`. To add a new command:
 2. Define a `cmd_mycommand()` function
 3. Add a `# DESCRIPTION:` comment at the top
 
-The command is immediately available as `logos-node mycommand`.
+The command is immediately available as `logosup mycommand`.
 
 ## Project structure
 
 ```
-logos-node/
+logosup/
 ├── install.sh              # One-line installer (curl|bash)
-├── logos-node               # CLI entry point
+├── logosup                 # CLI entry point
 ├── network.yml              # Network config (peers, ports, URLs)
 ├── docker/
 │   └── Dockerfile           # Multi-arch node container (debian:trixie-slim)

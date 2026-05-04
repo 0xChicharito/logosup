@@ -79,7 +79,7 @@ cmd_install() {
         done <<< "$keys"
     else
         log_warn "Could not parse wallet keys from config"
-        log_info "Check your keys with: logos-node keys"
+        log_info "Check your keys with: logosup keys"
     fi
 
     echo ""
@@ -127,13 +127,13 @@ cmd_install() {
     print_separator
     log_step "Installation complete!"
     echo ""
-    log_info "Start your node:    ${BOLD}logos-node start${RESET}"
-    log_info "Check status:       ${BOLD}logos-node status${RESET}"
-    log_info "View logs:          ${BOLD}logos-node logs${RESET}"
-    log_info "View your keys:     ${BOLD}logos-node keys${RESET}"
-    log_info "Open faucet:        ${BOLD}logos-node faucet${RESET}"
-    log_info "Monitoring:         ${BOLD}logos-node monitor start${RESET}"
-    log_info "Security:           ${BOLD}logos-node security${RESET}"
+    log_info "Start your node:    ${BOLD}logosup start${RESET}"
+    log_info "Check status:       ${BOLD}logosup status${RESET}"
+    log_info "View logs:          ${BOLD}logosup logs${RESET}"
+    log_info "View your keys:     ${BOLD}logosup keys${RESET}"
+    log_info "Open faucet:        ${BOLD}logosup faucet${RESET}"
+    log_info "Monitoring:         ${BOLD}logosup monitor start${RESET}"
+    log_info "Security:           ${BOLD}logosup security${RESET}"
     log_info "Grafana dashboard:  ${BOLD}https://localhost:${LOGOS_GRAFANA_PORT}${RESET}"
     echo ""
 

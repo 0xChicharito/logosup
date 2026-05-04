@@ -23,9 +23,9 @@ _keys_help() {
     log_step "Wallet key management"
     echo ""
     log_info "${BOLD}Usage:${RESET}"
-    log_info "  logos-node keys                          Show public keys"
-    log_info "  logos-node keys backup|export [FILE]     Export wallet keys to a file"
-    log_info "  logos-node keys restore|import <FILE>    Splice wallet keys back into config"
+    log_info "  logosup keys                          Show public keys"
+    log_info "  logosup keys backup|export [FILE]     Export wallet keys to a file"
+    log_info "  logosup keys restore|import <FILE>    Splice wallet keys back into config"
     echo ""
     log_info "${BOLD}What's in a backup file:${RESET}"
     log_info "  A YAML containing only the key-bearing fields: ${DIM}wallet.known_keys${RESET},"
@@ -48,7 +48,7 @@ _keys_show() {
     config_path="$(get_user_config_path)"
 
     if [[ ! -f "$config_path" ]]; then
-        die "Node configuration not found at $config_path\nRun 'logos-node install' first."
+        die "Node configuration not found at $config_path\nRun 'logosup install' first."
     fi
 
     log_step "Wallet keys"
@@ -72,7 +72,7 @@ _keys_show() {
     log_info "Use these keys with the faucet to receive testnet tokens."
     log_info "Faucet: ${BOLD}${LOGOS_FAUCET_URL}${RESET}"
     echo ""
-    log_dim "Backup your keys: ${BOLD}logos-node keys backup${RESET}"
+    log_dim "Backup your keys: ${BOLD}logosup keys backup${RESET}"
     echo ""
 }
 
@@ -95,7 +95,7 @@ _keys_backup() {
     config_path="$(get_user_config_path)"
 
     if [[ ! -f "$config_path" ]]; then
-        die "Node configuration not found at $config_path\nRun 'logos-node install' first."
+        die "Node configuration not found at $config_path\nRun 'logosup install' first."
     fi
 
     _keys_check_python || return 1
@@ -141,7 +141,7 @@ _keys_backup() {
     echo ""
     log_warn "This file contains your KMS private keys (full signing material)."
     log_warn "Store it securely — anyone with this file controls your wallet."
-    log_dim "Restore with: ${BOLD}logos-node keys restore $backup_file${RESET}"
+    log_dim "Restore with: ${BOLD}logosup keys restore $backup_file${RESET}"
     echo ""
 }
 
@@ -150,8 +150,8 @@ _keys_restore() {
 
     if [[ -z "$backup_file" ]]; then
         log_error "Missing file argument."
-        log_info "Usage:   logos-node keys import <FILE>     (or: keys restore <FILE>)"
-        log_info "Example: logos-node keys import logos-node-keys.backup.yaml"
+        log_info "Usage:   logosup keys import <FILE>     (or: keys restore <FILE>)"
+        log_info "Example: logosup keys import logos-node-keys.backup.yaml"
         return 1
     fi
 
@@ -165,7 +165,7 @@ _keys_restore() {
     config_path="$(get_user_config_path)"
 
     if [[ ! -f "$config_path" ]]; then
-        die "Node configuration not found at $config_path\nRun 'logos-node install' first, then restore keys."
+        die "Node configuration not found at $config_path\nRun 'logosup install' first, then restore keys."
     fi
 
     # Sanity-check the backup. Both keys-only backups and full-config backups
@@ -234,7 +234,7 @@ _keys_restore() {
 
     if docker_is_running 2>/dev/null; then
         log_warn "Restart the node to use the restored keys:"
-        log_info "  ${BOLD}logos-node stop && logos-node start${RESET}"
+        log_info "  ${BOLD}logosup stop && logosup start${RESET}"
     fi
     echo ""
 }

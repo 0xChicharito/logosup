@@ -11,7 +11,7 @@ cmd_reset() {
         case "$1" in
             -y|--yes) skip_confirm=true; shift ;;
             -h|--help|help)
-                log_info "Usage: logos-node reset [-y|--yes]"
+                log_info "Usage: logosup reset [-y|--yes]"
                 log_info ""
                 log_info "Wipes ${BOLD}~/.logos-node/data/${RESET} and regenerates user_config.yaml."
                 log_info "Use after a breaking release (e.g. genesis reset)."
@@ -28,8 +28,8 @@ cmd_reset() {
     _perform_migration "manual" "$skip_confirm"
 }
 
-# Core migration helper. Shared by `logos-node reset` and the breaking-version
-# branch in `logos-node update`.
+# Core migration helper. Shared by `logosup reset` and the breaking-version
+# branch in `logosup update`.
 #
 # Args:
 #   $1 = reason ("manual" | "update")
@@ -134,7 +134,7 @@ _perform_migration() {
         done <<< "$keys"
     else
         log_warn "Could not parse wallet keys from config"
-        log_info "Check your keys with: logos-node keys"
+        log_info "Check your keys with: logosup keys"
     fi
 
     echo ""
@@ -153,8 +153,8 @@ _perform_migration() {
     echo ""
     print_separator
     log_success "Migration complete"
-    log_info "Check status:  ${BOLD}logos-node status${RESET}"
-    log_info "View logs:     ${BOLD}logos-node logs${RESET}"
-    log_info "Faucet:        ${BOLD}logos-node faucet${RESET}"
+    log_info "Check status:  ${BOLD}logosup status${RESET}"
+    log_info "View logs:     ${BOLD}logosup logs${RESET}"
+    log_info "Faucet:        ${BOLD}logosup faucet${RESET}"
     echo ""
 }
