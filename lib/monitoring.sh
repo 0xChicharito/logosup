@@ -82,7 +82,7 @@ services:
         max-size: "20m"
         max-file: "3"
     networks:
-      - logos-net
+      - logosnode-net
 
   logos-otel:
     image: otel/opentelemetry-collector-contrib:latest
@@ -101,7 +101,7 @@ services:
         max-size: "20m"
         max-file: "3"
     networks:
-      - logos-net
+      - logosnode-net
 
   logos-prometheus:
     image: prom/prometheus:latest
@@ -123,7 +123,7 @@ services:
         max-size: "20m"
         max-file: "3"
     networks:
-      - logos-net
+      - logosnode-net
 
   logos-grafana:
     image: grafana/grafana:latest
@@ -151,10 +151,10 @@ services:
         max-size: "20m"
         max-file: "3"
     networks:
-      - logos-net
+      - logosnode-net
 
 networks:
-  logos-net:
+  logosnode-net:
     external: true
 COMPOSE
 
@@ -179,8 +179,8 @@ monitoring_build() {
 
 monitoring_up() {
     # Ensure the shared network exists (monitoring may start before the node)
-    if ! $DOCKER_CMD network inspect logos-net &>/dev/null; then
-        $DOCKER_CMD network create logos-net &>/dev/null || true
+    if ! $DOCKER_CMD network inspect logosnode-net &>/dev/null; then
+        $DOCKER_CMD network create logosnode-net &>/dev/null || true
     fi
 
     local compose_path

@@ -134,11 +134,11 @@ services:
         max-size: "50m"
         max-file: "5"
     networks:
-      - logos-net
+      - logosnode-net
 
 networks:
-  logos-net:
-    name: logos-net
+  logosnode-net:
+    name: logosnode-net
 YAML
 
     log_success "Generated docker-compose.yml"
@@ -321,11 +321,25 @@ patch_user_config_for_log_files() {
     log_dim "Disabled disk-based tracing logs (redundant with stdout/Docker)"
 }
 
+# Remove the legacy `logos-net` network if it's orphaned (no containers attached).
+# Pre-0.4.2 used `logos-net` which collided with any other Docker workload using
+# that generic name. We renamed to `logosnode-net`; this cleans up the stale one
+# on installs that have been migrated. Idempotent; never removes a network that
+# still has containers attached.
+docker_cleanup_legacy_network() {
+    $DOCKER_CMD network inspect logos-net &>/dev/null || return 0
+    local attached
+    attached="$($DOCKER_CMD network inspect logos-net --format '{{range .Containers}}x{{end}}' 2>/dev/null)"
+    [[ -n "$attached" ]] && return 0
+    $DOCKER_CMD network rm logos-net &>/dev/null || true
+}
+
 # Start the node
 docker_up() {
     local compose_path
     compose_path="$(get_compose_path)"
     $DOCKER_COMPOSE -f "$compose_path" up -d
+    docker_cleanup_legacy_network
 }
 
 # Stop the node
