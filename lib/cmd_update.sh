@@ -24,7 +24,7 @@ cmd_update() {
             node) update_node=true; shift ;;
             all)  update_cli=true; update_node=true; shift ;;
             -h|--help|help)
-                log_info "Usage: logos-node update [cli|node|all] [-b BRANCH]"
+                log_info "Usage: logosup update [cli|node|all] [-b BRANCH]"
                 log_info ""
                 log_info "Options:"
                 log_info "  -b, --branch BRANCH   Switch CLI to a specific git branch"
@@ -32,7 +32,7 @@ cmd_update() {
                 ;;
             *)
                 log_error "Unknown option: $1"
-                log_info "Usage: logos-node update [cli|node|all] [-b BRANCH]"
+                log_info "Usage: logosup update [cli|node|all] [-b BRANCH]"
                 return 1
                 ;;
         esac
@@ -62,6 +62,22 @@ cmd_update() {
             if [[ "$current_refspec" != "+refs/heads/*:refs/remotes/origin/*" ]]; then
                 git -C "$cli_dir" config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
             fi
+
+            # Migrate git remote URL from the old `shayanb/logos-node` slug to
+            # the new canonical `logosnode/logosup` if the operator's clone
+            # still points at the old origin. GitHub redirects either form,
+            # but rewriting locally removes the warnings and matches the
+            # current repo identity.
+            local current_url
+            current_url="$(git -C "$cli_dir" remote get-url origin 2>/dev/null)" || true
+            case "$current_url" in
+                *shayanb/logos-node*)
+                    local new_url="https://github.com/logosnode/logosup.git"
+                    log_info "Migrating git remote: ${DIM}shayanb/logos-node${RESET} → ${BOLD}logosnode/logosup${RESET}"
+                    git -C "$cli_dir" remote set-url origin "$new_url" 2>/dev/null \
+                        || log_warn "Could not update remote URL — pull will still work via redirect"
+                    ;;
+            esac
 
             local before_sha
             before_sha="$(git -C "$cli_dir" rev-parse HEAD 2>/dev/null)"
@@ -151,8 +167,8 @@ cmd_update() {
                     _perform_migration "update" "true"
                     return 0
                 else
-                    log_info "Update cancelled — run later with: ${BOLD}logos-node update${RESET}"
-                    log_info "Or trigger the migration manually with: ${BOLD}logos-node reset${RESET}"
+                    log_info "Update cancelled — run later with: ${BOLD}logosup update${RESET}"
+                    log_info "Or trigger the migration manually with: ${BOLD}logosup reset${RESET}"
                     return 0
                 fi
             fi
@@ -179,7 +195,7 @@ cmd_update() {
                         source "$LOGOS_NODE_LIB/cmd_start.sh"
                         cmd_start
                     else
-                        log_info "Node stopped. Start manually with: logos-node start"
+                        log_info "Node stopped. Start manually with: logosup start"
                     fi
                 fi
             else
@@ -187,6 +203,54 @@ cmd_update() {
             fi
         else
             log_success "Node is already at the latest version (${current_version})"
+        fi
+    fi
+
+    # ── Post-update: heal symlinks if the dispatcher file was renamed ─
+    # Pre-0.4 the dispatcher was named `logos-node`. After the rename to
+    # `logosup`, the existing /usr/local/bin/logosup (and /logosnode)
+    # symlinks point at a path that no longer exists. Recreate all three
+    # symlinks (logosup, logos-node, logosnode) pointing at the new file.
+    if [[ "$cli_updated" == "true" ]]; then
+        local cli_dir_heal="$LOGOS_NODE_DIR/cli"
+        if [[ -f "$cli_dir_heal/logosup" ]] && [[ ! -f "$cli_dir_heal/logos-node" ]]; then
+            local heal_dir=""
+            local active
+            active="$(command -v logosup 2>/dev/null)" || \
+            active="$(command -v logosnode 2>/dev/null)" || \
+            active="$(command -v logosup 2>/dev/null)" || true
+            if [[ -n "$active" ]]; then
+                heal_dir="$(dirname "$active")"
+            else
+                for d in /usr/local/bin "$HOME/.local/bin"; do
+                    [[ -d "$d" ]] && heal_dir="$d" && break
+                done
+            fi
+
+            if [[ -n "$heal_dir" ]]; then
+                local need_heal=false
+                [[ -e "$heal_dir/logosup" ]] || need_heal=true
+                local link
+                for link in logosup logosnode; do
+                    local p="$heal_dir/$link"
+                    if [[ -L "$p" ]] && [[ ! -e "$p" ]]; then
+                        need_heal=true
+                    fi
+                done
+
+                if $need_heal; then
+                    log_info "Healing CLI symlinks in ${DIM}${heal_dir}${RESET} → ${BOLD}logosup${RESET}, ${DIM}logos-node${RESET}, ${DIM}logosnode${RESET}"
+                    local needs_sudo=false
+                    [[ -w "$heal_dir" ]] || needs_sudo=true
+                    for link in logosup logosup logosnode; do
+                        if $needs_sudo && command -v sudo &>/dev/null; then
+                            sudo ln -sf "$cli_dir_heal/logosup" "$heal_dir/$link" 2>/dev/null || true
+                        else
+                            ln -sf "$cli_dir_heal/logosup" "$heal_dir/$link" 2>/dev/null || true
+                        fi
+                    done
+                fi
+            fi
         fi
     fi
 
@@ -208,7 +272,7 @@ cmd_update() {
                         source "$LOGOS_NODE_LIB/cmd_start.sh"
                         cmd_start
                     else
-                        log_info "Apply later with: ${BOLD}logos-node stop && logos-node start${RESET}"
+                        log_info "Apply later with: ${BOLD}logosup stop && logosup start${RESET}"
                     fi
                 fi
             fi
@@ -233,13 +297,13 @@ cmd_update() {
                     monitoring_up
                     log_success "Monitoring stack updated"
                 else
-                    log_success "Monitoring compose regenerated (start with: logos-node monitor start)"
+                    log_success "Monitoring compose regenerated (start with: logosup monitor start)"
                 fi
             fi
         fi
 
         if docker_is_running; then
-            log_info "Restart the node to apply changes: ${BOLD}logos-node stop && logos-node start${RESET}"
+            log_info "Restart the node to apply changes: ${BOLD}logosup stop && logosup start${RESET}"
         fi
     fi
 }

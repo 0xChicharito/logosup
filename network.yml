@@ -17,7 +17,7 @@ bootstrap_peers:
 node_repo: logos-blockchain/logos-blockchain
 
 # CLI release repository
-cli_repo: shayanb/logos-node
+cli_repo: logosnode/logosup
 
 # Default ports
 api_port: 8080

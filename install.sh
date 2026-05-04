@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ── Logos Node Installer ─────────────────────────────────────────────
-# Usage: curl -sL https://raw.githubusercontent.com/shayanb/logos-node/main/install.sh | bash
-# Or:    wget -qO- https://raw.githubusercontent.com/shayanb/logos-node/main/install.sh | bash
+# ── Logosup Installer ────────────────────────────────────────────────
+# Usage: curl -sL https://raw.githubusercontent.com/logosnode/logosup/main/install.sh | bash
+# Or:    wget -qO- https://raw.githubusercontent.com/logosnode/logosup/main/install.sh | bash
 
-LOGOS_NODE_REPO="shayanb/logos-node"
+LOGOS_NODE_REPO="logosnode/logosup"
 LOGOS_NODE_DIR="${LOGOS_NODE_DIR:-$HOME/.logos-node}"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 DOCKER_JUST_INSTALLED=false
@@ -368,7 +368,7 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
                             info "Please open Docker Desktop from Applications to start it."
                             echo ""
                             info "Once Docker Desktop is running, re-run this script:"
-                            echo -e "  ${BOLD}${CYAN}curl -sL https://raw.githubusercontent.com/shayanb/logos-node/main/install.sh | bash${RESET}"
+                            echo -e "  ${BOLD}${CYAN}curl -sL https://raw.githubusercontent.com/logosnode/logosup/main/install.sh | bash${RESET}"
                             exit 0
                         else
                             die "Docker Desktop installation failed. Please install manually."
@@ -459,14 +459,14 @@ if [[ "$DOCKER_PERMISSION" == "true" ]]; then
     # Check if user is already in the docker group (but session doesn't have it active)
     if getent group docker 2>/dev/null | grep -qw "$USER"; then
         info "Your user is in the docker group but it's not active in this session."
-        # sg docker will handle it when we launch logos-node install
+        # sg docker will handle it when we launch logosup install
         if sg docker -c "docker info" &>/dev/null 2>&1; then
             success "Docker group activated"
             DOCKER_PERMISSION=false
         else
             warn "Could not activate docker group."
             info "Please log out and back in, then run:"
-            echo -e "  ${BOLD}${CYAN}logos-node install${RESET}"
+            echo -e "  ${BOLD}${CYAN}logosup install${RESET}"
             exit 0
         fi
     else
@@ -486,7 +486,7 @@ if [[ "$DOCKER_PERMISSION" == "true" ]]; then
                 echo ""
                 warn "Group change requires a new login session to take effect."
                 info "Please log out and back in, then run:"
-                echo -e "  ${BOLD}${CYAN}logos-node install${RESET}"
+                echo -e "  ${BOLD}${CYAN}logosup install${RESET}"
                 exit 0
             fi
         else
@@ -544,10 +544,14 @@ if [[ -d "$CLI_DIR" ]]; then
 fi
 git clone --depth 1 --no-single-branch "https://github.com/${LOGOS_NODE_REPO}.git" "$CLI_DIR"
 
-chmod +x "$CLI_DIR/logos-node"
+chmod +x "$CLI_DIR/logosup"
 success "CLI installed to $CLI_DIR"
 
 # ── Create symlinks ──────────────────────────────────────────────────
+# Three symlinks all pointing at the same dispatcher:
+#   logosup       — primary command (matches the project name)
+#   logos-node    — legacy alias (backwards compat with pre-0.4 installs)
+#   logosnode     — legacy alias
 info "Setting up command aliases..."
 
 create_symlink() {
@@ -570,16 +574,18 @@ create_symlink() {
 FALLBACK_TO_PATH=false
 
 if [[ -d "$INSTALL_DIR" ]] && [[ -w "$INSTALL_DIR" ]]; then
-    create_symlink "$CLI_DIR/logos-node" "logos-node"
-    create_symlink "$CLI_DIR/logos-node" "logosnode"
-    success "Commands available: ${BOLD}logos-node${RESET} and ${BOLD}logosnode${RESET}"
+    create_symlink "$CLI_DIR/logosup" "logosup"
+    create_symlink "$CLI_DIR/logosup" "logos-node"
+    create_symlink "$CLI_DIR/logosup" "logosnode"
+    success "Command available: ${BOLD}logosup${RESET} (aliases: ${DIM}logos-node${RESET}, ${DIM}logosnode${RESET})"
 else
     # Try with sudo
     if command -v sudo &>/dev/null; then
         info "Need sudo to install to $INSTALL_DIR"
-        if run_sudo ln -sf "$CLI_DIR/logos-node" "$INSTALL_DIR/logos-node" 2>/dev/null && \
-           run_sudo ln -sf "$CLI_DIR/logos-node" "$INSTALL_DIR/logosnode" 2>/dev/null; then
-            success "Commands available: ${BOLD}logos-node${RESET} and ${BOLD}logosnode${RESET}"
+        if run_sudo ln -sf "$CLI_DIR/logosup" "$INSTALL_DIR/logosup" 2>/dev/null && \
+           run_sudo ln -sf "$CLI_DIR/logosup" "$INSTALL_DIR/logos-node" 2>/dev/null && \
+           run_sudo ln -sf "$CLI_DIR/logosup" "$INSTALL_DIR/logosnode" 2>/dev/null; then
+            success "Command available: ${BOLD}logosup${RESET} (aliases: ${DIM}logos-node${RESET}, ${DIM}logosnode${RESET})"
         else
             FALLBACK_TO_PATH=true
         fi
@@ -592,8 +598,9 @@ if [[ "$FALLBACK_TO_PATH" == "true" ]]; then
     # Fallback: use ~/.local/bin
     LOCAL_BIN="$HOME/.local/bin"
     mkdir -p "$LOCAL_BIN"
-    ln -sf "$CLI_DIR/logos-node" "$LOCAL_BIN/logos-node"
-    ln -sf "$CLI_DIR/logos-node" "$LOCAL_BIN/logosnode"
+    ln -sf "$CLI_DIR/logosup" "$LOCAL_BIN/logosup"
+    ln -sf "$CLI_DIR/logosup" "$LOCAL_BIN/logos-node"
+    ln -sf "$CLI_DIR/logosup" "$LOCAL_BIN/logosnode"
     warn "Installed to $LOCAL_BIN (add to PATH if needed)"
 
     if [[ ":$PATH:" != *":$LOCAL_BIN:"* ]]; then
@@ -616,20 +623,20 @@ info "  3. Generate your node configuration and wallet keys"
 info "  4. Show you how to get testnet tokens"
 echo ""
 
-if confirm "Run logos-node install now?"; then
+if confirm "Run logosup install now?"; then
     echo ""
     if docker info &>/dev/null 2>&1; then
         # Docker works directly
-        exec "$CLI_DIR/logos-node" install
+        exec "$CLI_DIR/logosup" install
     elif sg docker -c "docker info" &>/dev/null 2>&1; then
         # Need sg to access Docker
-        exec sg docker -c "\"$CLI_DIR/logos-node\" install"
+        exec sg docker -c "\"$CLI_DIR/logosup\" install"
     else
-        exec "$CLI_DIR/logos-node" install
+        exec "$CLI_DIR/logosup" install
     fi
 fi
 
 echo ""
 info "You can run it later with:"
-echo -e "  ${BOLD}${CYAN}logos-node install${RESET}"
+echo -e "  ${BOLD}${CYAN}logosup install${RESET}"
 echo ""

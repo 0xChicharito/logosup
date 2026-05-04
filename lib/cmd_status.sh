@@ -27,7 +27,7 @@ cmd_status() {
         fi
     else
         log_error "Not running"
-        log_info "Start with: ${BOLD}logos-node start${RESET}"
+        log_info "Start with: ${BOLD}logosup start${RESET}"
         return 1
     fi
 

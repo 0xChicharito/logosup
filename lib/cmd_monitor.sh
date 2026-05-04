@@ -39,7 +39,7 @@ _monitor_help() {
     log_step "Monitoring dashboard management"
     echo ""
     log_info "${BOLD}Usage:${RESET}"
-    log_info "  logos-node monitor [start|stop|status|auth]"
+    log_info "  logosup monitor [start|stop|status|auth]"
     echo ""
     log_info "${BOLD}Commands:${RESET}"
     log_info "  start    Start the monitoring stack (Grafana + Prometheus + exporter)"
@@ -83,7 +83,7 @@ _monitor_start() {
     fi
     log_dim "Self-signed cert — accept the browser warning on first visit"
     echo ""
-    log_info "Stop with: ${BOLD}logos-node monitor stop${RESET}"
+    log_info "Stop with: ${BOLD}logosup monitor stop${RESET}"
     echo ""
 }
 
@@ -124,7 +124,7 @@ _monitor_status() {
         grafana_host="${grafana_host:-localhost}"
         log_info "Grafana: ${BOLD}https://${grafana_host}:${LOGOS_GRAFANA_PORT}${RESET}"
     else
-        log_info "Start with: ${BOLD}logos-node monitor start${RESET}"
+        log_info "Start with: ${BOLD}logosup monitor start${RESET}"
     fi
     echo ""
 }
@@ -147,7 +147,7 @@ _monitor_auth() {
                 if confirm "Disable authentication (allow anonymous access)?" "n"; then
                     _monitor_auth_disable
                 else
-                    log_info "Change password? Run: ${BOLD}logos-node monitor auth on${RESET}"
+                    log_info "Change password? Run: ${BOLD}logosup monitor auth on${RESET}"
                 fi
             else
                 log_info "Grafana authentication is currently ${BOLD}disabled${RESET} (anonymous access)"
@@ -159,9 +159,9 @@ _monitor_auth() {
             ;;
         *)
             log_info "${BOLD}Usage:${RESET}"
-            log_info "  logos-node monitor auth          Toggle authentication (interactive)"
-            log_info "  logos-node monitor auth on        Enable auth and set password"
-            log_info "  logos-node monitor auth off       Disable auth (anonymous access)"
+            log_info "  logosup monitor auth          Toggle authentication (interactive)"
+            log_info "  logosup monitor auth on        Enable auth and set password"
+            log_info "  logosup monitor auth off       Disable auth (anonymous access)"
             ;;
     esac
 }
@@ -253,6 +253,6 @@ _monitor_restart_if_running() {
         $DOCKER_CMD exec logos-grafana grafana cli admin reset-admin-password "$LOGOS_GRAFANA_PASSWORD" &>/dev/null || true
         log_success "Monitoring stack restarted"
     else
-        log_info "Changes will apply on next: ${BOLD}logos-node monitor start${RESET}"
+        log_info "Changes will apply on next: ${BOLD}logosup monitor start${RESET}"
     fi
 }

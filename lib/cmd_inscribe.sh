@@ -6,7 +6,7 @@ cmd_inscribe() {
     check_docker
 
     if ! docker_is_running; then
-        die "Logos Node is not running. Start it first with: logos-node start"
+        die "Logos Node is not running. Start it first with: logosup start"
     fi
 
     local mode="${1:-}"
@@ -20,9 +20,9 @@ cmd_inscribe() {
             log_info "The sequencer reads text from stdin and publishes it on-chain."
             echo ""
             log_info "${BOLD}Usage:${RESET}"
-            log_info "  logos-node inscribe                       # Interactive: type and publish"
-            log_info "  echo \"hello\" | logos-node inscribe -       # Pipe text to inscribe"
-            log_info "  logos-node inscribe < message.txt          # Inscribe from a file"
+            log_info "  logosup inscribe                       # Interactive: type and publish"
+            log_info "  echo \"hello\" | logosup inscribe -       # Pipe text to inscribe"
+            log_info "  logosup inscribe < message.txt          # Inscribe from a file"
             echo ""
             log_info "${BOLD}Options:${RESET}"
             log_info "  The sequencer creates a signing key (sequencer.key) and checkpoint"
@@ -43,7 +43,7 @@ cmd_inscribe() {
         *)
             # Any other arg: show help
             log_error "Unknown option: $mode"
-            log_info "Run 'logos-node inscribe --help' for usage"
+            log_info "Run 'logosup inscribe --help' for usage"
             return 1
             ;;
     esac

@@ -22,8 +22,8 @@ _security_help() {
     log_step "Server security hardening"
     echo ""
     log_info "${BOLD}Usage:${RESET}"
-    log_info "  logos-node security              Scan and report security findings"
-    log_info "  logos-node security apply         Apply recommended fixes (interactive)"
+    log_info "  logosup security              Scan and report security findings"
+    log_info "  logosup security apply         Apply recommended fixes (interactive)"
     echo ""
     log_info "${BOLD}Checks:${RESET}"
     log_info "  Firewall (UFW/firewalld)         Ensure firewall is active with correct ports"
@@ -328,7 +328,7 @@ _security_scan() {
     echo ""
 
     if [[ $FAIL_COUNT -gt 0 ]] || [[ $WARN_COUNT -gt 0 ]]; then
-        log_info "Run ${BOLD}logos-node security apply${RESET} to fix issues interactively"
+        log_info "Run ${BOLD}logosup security apply${RESET} to fix issues interactively"
         echo ""
     fi
 }
@@ -679,7 +679,7 @@ _apply_ssh() {
                 log_warn "Password authentication is enabled"
                 log_warn "No SSH keys found — ${BOLD}add your public key before disabling password auth${RESET}"
                 log_info "  ssh-copy-id $(whoami)@$(hostname)"
-                log_info "  Then re-run: logos-node security apply"
+                log_info "  Then re-run: logosup security apply"
             fi
             ;;
     esac
