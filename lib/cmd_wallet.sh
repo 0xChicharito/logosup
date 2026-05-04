@@ -31,7 +31,7 @@ _wallet_help() {
     log_info "  logosup wallet balance [<key>]              Show balance for one or all keys"
     log_info "  logosup wallet transfer <to_pk> <amount>    Send funds to a recipient"
     log_info "                            [--from <key>]       Explicit funding key"
-    log_info "                            [--change <key>]     Where leftover change goes"
+    log_info "                            [--change <key>]     Where leftover change goes (defaults to --from)"
     log_info "                            [--yes]              Skip confirmation"
     log_info "  logosup wallet tx <tx_hash>                 Look up a transaction"
     echo ""
@@ -209,9 +209,10 @@ _wallet_transfer() {
         fi
     fi
 
-    # Default change key = first known_key (typically same as from)
+    # Default change key = funding key (change returns to the sender unless
+    # the operator explicitly redirects it with --change).
     if [[ -z "$change_key" ]]; then
-        change_key="$(get_wallet_keys 2>/dev/null | head -1)"
+        change_key="$from_key"
     elif ! _is_hex64 "$change_key"; then
         log_error "--change must be a 64-character hex public key"
         return 1

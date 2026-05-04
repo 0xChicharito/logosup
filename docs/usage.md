@@ -19,6 +19,9 @@ logosup wallet transfer 8a3b7f...c2d1 100
 # Explicit funding/change keys, skip the confirmation prompt
 logosup wallet send 8a3b7f...c2d1 100 --from 793055d1... --change 62156fa0... --yes
 
+# By default, leftover change returns to the funding key. Pass --change <key>
+# only if you want it to land on a different address.
+
 # Look up a transaction by hash (0x prefix optional)
 logosup wallet tx 4d8e2a...
 ```
