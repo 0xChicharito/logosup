@@ -239,22 +239,22 @@ _wallet_transfer() {
         local tx_hash
         tx_hash="$(echo "$WALLET_BODY" | sed -E 's/.*"hash":"([^"]+)".*/\1/')"
         echo ""
-        log_success "Transaction submitted"
-        log_info "Hash: ${BOLD}${tx_hash}${RESET}"
-        # Note: the upstream wallet API returns `mantle_tx.hash()` here —
-        # the inner mantle-tx hash, not the on-chain signed-tx hash that
-        # the explorer indexes by. So the hash above won't match the
-        # explorer's tx-id and a direct `/explorer/transactions/<hash>`
-        # URL with this hash returns 404. Operator can still navigate
-        # the explorer manually (e.g. by recipient address) to find the
-        # on-chain entry. Until upstream exposes both hashes (or unifies
-        # them), we don't auto-generate the explorer link to avoid
-        # producing a known-broken URL.
+        log_success "Transaction submitted to mempool"
+        log_info "Hash:   ${BOLD}${tx_hash}${RESET}"
+        log_info "Lookup: ${BOLD}logos-node wallet tx ${tx_hash}${RESET}"
         if [[ -n "${LOGOS_DASHBOARD_URL:-}" ]]; then
             local base="${LOGOS_DASHBOARD_URL%/}"
-            log_dim "Explorer: ${base}/explorer/  (search by recipient — the hash above is the mantle-tx hash and may differ from the on-chain signed-tx hash)"
+            log_info "Explorer: ${base}/explorer/   ${DIM}(uses a different id scheme; can't be auto-linked)${RESET}"
         fi
-        log_dim "Look up later: ${BOLD}logos-node wallet tx ${tx_hash}${RESET}"
+        echo ""
+        log_dim "Confirmation = your ${BOLD}wallet balance${RESET}${DIM} updates: the recipient gets a"
+        log_dim "new note, change goes back to the funding/--change key."
+        log_dim ""
+        log_dim "Note: the chain is privacy-oriented (ZK proofs over BN254), so the"
+        log_dim "explorer doesn't index by recipient. The hash above is the canonical"
+        log_dim "TxHash from the wallet API, but the storage adapter on this build"
+        log_dim "often returns 404 for it (timing or indexing limitation we haven't"
+        log_dim "pinned down upstream yet) — best signal of success is the balance."
         echo ""
     else
         log_error "Transfer failed (HTTP ${WALLET_HTTP_CODE})"
@@ -296,8 +296,12 @@ _wallet_tx() {
         echo "$WALLET_BODY"
         echo ""
     elif [[ "$WALLET_HTTP_CODE" == "404" ]] || echo "$WALLET_BODY" | grep -qi "not found"; then
-        log_warn "Transaction not found"
-        log_dim "It may not be confirmed yet, or the hash is incorrect."
+        log_warn "Transaction not found in chain storage"
+        log_dim "Reasons we've seen this 404 even for tx that did land:"
+        log_dim "  • not yet committed to a block (mempool only)"
+        log_dim "  • storage indexing may not match the hash returned by"
+        log_dim "    /wallet/transactions/transfer-funds (in-progress upstream)"
+        log_dim "If your ${BOLD}wallet balance${RESET}${DIM} reflects the change, the transfer landed."
     else
         log_error "Lookup failed (HTTP ${WALLET_HTTP_CODE})"
         log_info "$(wallet_squash_body "$WALLET_BODY" 240 "$WALLET_HTTP_CODE")"
