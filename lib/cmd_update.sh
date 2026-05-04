@@ -1,6 +1,61 @@
 #!/usr/bin/env bash
 # DESCRIPTION: Update the Logos Node and/or CLI tool
 
+# Heal CLI symlinks after the 0.4.0 rename (logos-node -> logosup).
+# When git pull renames the dispatcher file, any /usr/local/bin/logos-node
+# (or /logosnode) symlink dangles, and the operator's PATH-resolved CLI
+# breaks. This recreates all three symlinks (logosup primary,
+# logos-node + logosnode legacy aliases) pointing at the new file.
+#
+# Idempotent: only fires when cli_dir/logosup exists AND
+# cli_dir/logos-node doesn't (i.e. the rename has happened in this clone).
+_heal_cli_symlinks_after_rename() {
+    local cli_dir="$1"
+    [[ -f "$cli_dir/logosup" ]] || return 0
+    [[ -f "$cli_dir/logos-node" ]] && return 0   # both names present, nothing to heal
+
+    # Find where the operator's CLI symlinks live: prefer the dir of the
+    # currently-active alias (whichever one they invoked us with), fall back
+    # to standard locations.
+    local heal_dir=""
+    local active
+    active="$(command -v logos-node 2>/dev/null)" || \
+        active="$(command -v logosnode 2>/dev/null)" || \
+        active="$(command -v logosup 2>/dev/null)" || true
+    if [[ -n "$active" ]]; then
+        heal_dir="$(dirname "$active")"
+    else
+        local d
+        for d in /usr/local/bin "$HOME/.local/bin"; do
+            [[ -d "$d" ]] && heal_dir="$d" && break
+        done
+    fi
+    [[ -z "$heal_dir" ]] && return 0
+
+    # Need heal if logosup is missing OR any old symlink dangles.
+    local need_heal=false
+    [[ -e "$heal_dir/logosup" ]] || need_heal=true
+    local link
+    for link in logos-node logosnode; do
+        local p="$heal_dir/$link"
+        if [[ -L "$p" ]] && [[ ! -e "$p" ]]; then
+            need_heal=true
+        fi
+    done
+    $need_heal || return 0
+
+    log_info "Healing CLI symlinks in ${DIM}${heal_dir}${RESET} → ${BOLD}logosup${RESET}, ${DIM}logos-node${RESET}, ${DIM}logosnode${RESET}"
+    local needs_sudo=false
+    [[ -w "$heal_dir" ]] || needs_sudo=true
+    for link in logosup logos-node logosnode; do
+        if $needs_sudo && command -v sudo &>/dev/null; then
+            sudo ln -sf "$cli_dir/logosup" "$heal_dir/$link" 2>/dev/null || true
+        else
+            ln -sf "$cli_dir/logosup" "$heal_dir/$link" 2>/dev/null || true
+        fi
+    done
+}
+
 cmd_update() {
     detect_platform
     check_docker
@@ -110,6 +165,13 @@ cmd_update() {
             # Track what changed
             if [[ "$cli_updated" == "true" ]]; then
                 cli_changed_files="$(git -C "$cli_dir" diff --name-only "$before_sha" HEAD 2>/dev/null)" || true
+
+                # If the dispatcher file was renamed in this pull (e.g.
+                # logos-node -> logosup in 0.4.0), the old file is gone and
+                # any /usr/local/bin/logos-node symlink now dangles.  Heal
+                # the symlinks BEFORE the re-exec below so the operator's
+                # PATH-resolved CLI keeps working.
+                _heal_cli_symlinks_after_rename "$cli_dir"
             fi
         else
             log_dim "CLI not installed via git (skipping auto-update)"
@@ -121,13 +183,26 @@ cmd_update() {
     # keeps using the old in-memory functions — e.g. a new is_breaking_version
     # entry on disk would never fire).
     if [[ "$cli_updated" == "true" && "$update_node" == "true" && -z "${LOGOS_UPDATE_REEXEC:-}" ]]; then
+        # LOGOS_NODE_ENTRY was set at script start to the resolved-after-symlink
+        # path of the dispatcher (e.g. ~/.logos-node/cli/logos-node). If the
+        # pull just renamed that file (logos-node -> logosup), re-execing the
+        # old path fails. Fall back to the new name in the same directory.
+        local reexec_entry="$LOGOS_NODE_ENTRY"
+        if [[ ! -f "$reexec_entry" ]]; then
+            local reexec_dir
+            reexec_dir="$(dirname "$reexec_entry")"
+            if [[ -f "$reexec_dir/logosup" ]]; then
+                reexec_entry="$reexec_dir/logosup"
+            fi
+        fi
+
         echo ""
         log_info "Re-running with updated CLI to apply node update..."
         export LOGOS_UPDATE_REEXEC=1
         # Pass cli_changed_files through the re-exec so post-update hooks
         # (compose regen, monitoring rebuild) can still fire in the new process.
         export LOGOS_UPDATE_REEXEC_CHANGED_FILES="$cli_changed_files"
-        exec "$LOGOS_NODE_ENTRY" update node
+        exec "$reexec_entry" update node
     fi
 
     # If we re-exec'd, restore the cli-updated state so post-update hooks fire.
@@ -203,54 +278,6 @@ cmd_update() {
             fi
         else
             log_success "Node is already at the latest version (${current_version})"
-        fi
-    fi
-
-    # ── Post-update: heal symlinks if the dispatcher file was renamed ─
-    # Pre-0.4 the dispatcher was named `logos-node`. After the rename to
-    # `logosup`, the existing /usr/local/bin/logosup (and /logosnode)
-    # symlinks point at a path that no longer exists. Recreate all three
-    # symlinks (logosup, logos-node, logosnode) pointing at the new file.
-    if [[ "$cli_updated" == "true" ]]; then
-        local cli_dir_heal="$LOGOS_NODE_DIR/cli"
-        if [[ -f "$cli_dir_heal/logosup" ]] && [[ ! -f "$cli_dir_heal/logos-node" ]]; then
-            local heal_dir=""
-            local active
-            active="$(command -v logosup 2>/dev/null)" || \
-            active="$(command -v logosnode 2>/dev/null)" || \
-            active="$(command -v logosup 2>/dev/null)" || true
-            if [[ -n "$active" ]]; then
-                heal_dir="$(dirname "$active")"
-            else
-                for d in /usr/local/bin "$HOME/.local/bin"; do
-                    [[ -d "$d" ]] && heal_dir="$d" && break
-                done
-            fi
-
-            if [[ -n "$heal_dir" ]]; then
-                local need_heal=false
-                [[ -e "$heal_dir/logosup" ]] || need_heal=true
-                local link
-                for link in logosup logosnode; do
-                    local p="$heal_dir/$link"
-                    if [[ -L "$p" ]] && [[ ! -e "$p" ]]; then
-                        need_heal=true
-                    fi
-                done
-
-                if $need_heal; then
-                    log_info "Healing CLI symlinks in ${DIM}${heal_dir}${RESET} → ${BOLD}logosup${RESET}, ${DIM}logos-node${RESET}, ${DIM}logosnode${RESET}"
-                    local needs_sudo=false
-                    [[ -w "$heal_dir" ]] || needs_sudo=true
-                    for link in logosup logosup logosnode; do
-                        if $needs_sudo && command -v sudo &>/dev/null; then
-                            sudo ln -sf "$cli_dir_heal/logosup" "$heal_dir/$link" 2>/dev/null || true
-                        else
-                            ln -sf "$cli_dir_heal/logosup" "$heal_dir/$link" 2>/dev/null || true
-                        fi
-                    done
-                fi
-            fi
         fi
     fi
 
