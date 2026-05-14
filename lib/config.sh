@@ -78,7 +78,7 @@ _set_defaults() {
     # Bootstrap peers for the current testnet release. Update these whenever the
     # network rotates peer IDs (e.g. on a breaking-genesis release).
     # Source: https://github.com/logos-blockchain/logos-blockchain/releases/tag/0.1.2
-    : "${LOGOS_BOOTSTRAP_PEERS:=/ip4/65.109.51.37/udp/3000/quic-v1/p2p/12D3KooWFrouXfmrR4nsLMtE7wu15DoMJ6VtoUtHinREZCvbWHar,/ip4/65.109.51.37/udp/3001/quic-v1/p2p/12D3KooWJRGau8M1rjT7R5e4YYsgdFhsMX35nRDtMwCDjxQkXAHz,/ip4/65.109.51.37/udp/3002/quic-v1/p2p/12D3KooWQXJavMDTRscjauFSgVAB1VLB6Rzpy2uY5SU9Tk7927tb,/ip4/65.109.51.37/udp/3003/quic-v1/p2p/12D3KooWSQc7CcGtvWDPF1yCbBthFnQjprfCVHmfmNDUrSmqQsU1}"
+    : "${LOGOS_BOOTSTRAP_PEERS:=/ip4/65.109.51.37/udp/3000/quic-v1,/ip4/65.109.51.37/udp/3001/quic-v1,/ip4/65.109.51.37/udp/3002/quic-v1,/ip4/65.109.51.37/udp/3003/quic-v1}"
     : "${LOGOS_GRAFANA_PORT:=3001}"
     : "${LOGOS_GRAFANA_AUTH:=false}"
     : "${LOGOS_GRAFANA_PASSWORD:=logos}"
