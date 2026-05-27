@@ -73,7 +73,6 @@ cmd_start() {
         done || true
         echo ""
         log_info "For the full log run: ${BOLD}logosup logs${RESET}"
-        log_info "hahahah"
         return 1
     else
         echo ""

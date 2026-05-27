@@ -155,7 +155,7 @@ services:
 
 networks:
   logosnode-net:
-    external: true
+    name: logosnode-net
 COMPOSE
 
     log_success "Monitoring compose file generated at $compose_path"
@@ -178,11 +178,6 @@ monitoring_build() {
 }
 
 monitoring_up() {
-    # Ensure the shared network exists (monitoring may start before the node)
-    if ! $DOCKER_CMD network inspect logosnode-net &>/dev/null; then
-        $DOCKER_CMD network create logosnode-net &>/dev/null || true
-    fi
-
     local compose_path
     compose_path="$(get_monitoring_compose_path)"
     COMPOSE_IGNORE_ORPHANS=true $DOCKER_COMPOSE -f "$compose_path" up -d
