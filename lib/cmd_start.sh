@@ -55,12 +55,26 @@ cmd_start() {
     log_success "Logos Node container started"
     log_info "Waiting for node to initialize..."
 
-    if docker_health_wait 120; then
+    local health_rc
+    docker_health_wait 120 && health_rc=0 || health_rc=$?
+
+    if [[ $health_rc -eq 0 ]]; then
         echo ""
         log_success "Node is running and healthy!"
         echo ""
-        # Show brief status
         _show_brief_status
+    elif [[ $health_rc -eq 2 ]]; then
+        echo ""
+        log_error "Node container exited unexpectedly"
+        log_info "Last log lines:"
+        echo ""
+        $DOCKER_CMD logs --tail 30 "$LOGOS_CONTAINER_NAME" 2>&1 | while IFS= read -r line; do
+            echo -e "  ${DIM}${line}${RESET}"
+        done || true
+        echo ""
+        log_info "For the full log run: ${BOLD}logosup logs${RESET}"
+        log_info "hahahah"
+        return 1
     else
         echo ""
         log_warn "Node started but health check hasn't passed yet"

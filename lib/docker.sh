@@ -338,8 +338,9 @@ docker_cleanup_legacy_network() {
 docker_up() {
     local compose_path
     compose_path="$(get_compose_path)"
-    $DOCKER_COMPOSE -f "$compose_path" up -d
+
     docker_cleanup_legacy_network
+    $DOCKER_COMPOSE -f "$compose_path" up -d
 }
 
 # Stop the node
@@ -354,20 +355,32 @@ docker_is_running() {
     $DOCKER_CMD ps --filter "name=${LOGOS_CONTAINER_NAME}" --format '{{.Names}}' 2>/dev/null | grep -q "^${LOGOS_CONTAINER_NAME}$"
 }
 
-# Wait for the node to become healthy
+# Wait for the node to become healthy.
+# Returns:
+#   0  — container reached "healthy"
+#   1  — timed out (container still running but not yet healthy)
+#   2  — container exited/crashed
 docker_health_wait() {
     local timeout="${1:-120}"
     local elapsed=0
 
     while [[ $elapsed -lt $timeout ]]; do
+        # Bail out early if the container is not running
+        if ! docker_is_running; then
+            echo -en "\r\033[K"
+            return 2
+        fi
+
         local status
         status="$($DOCKER_CMD inspect --format='{{.State.Health.Status}}' "$LOGOS_CONTAINER_NAME" 2>/dev/null)" || true
 
         case "$status" in
             healthy)
+                echo -en "\r\033[K"
                 return 0
                 ;;
             unhealthy)
+                echo -en "\r\033[K"
                 return 1
                 ;;
         esac
