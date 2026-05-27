@@ -334,12 +334,57 @@ docker_cleanup_legacy_network() {
     $DOCKER_CMD network rm logos-net &>/dev/null || true
 }
 
+# Repair a `logosnode-net` network that exists but was NOT created by compose.
+#
+# Both stacks declare this network with `name: logosnode-net` (see
+# generate_compose_file and the monitoring compose). Compose refuses to adopt a
+# same-named network that lacks its own labels, aborting with "network
+# logosnode-net was found but has incorrect label" — which breaks `start`.
+#
+# This bites installs done before the monitoring stack switched from
+# `external: true` + a manual `docker network create` to a compose-managed
+# network: that manual network has no compose labels, and on those boxes the
+# monitoring containers are already attached to it, so it isn't orphaned and
+# can't simply be removed in place.
+#
+# Fix: when the network is unmanaged, bring our stacks down to detach from it,
+# drop it, and let the normal bring-up recreate it with the right labels (the
+# node and monitoring stacks are restarted by the regular flow right after).
+# No-op when the network is already compose-managed or absent, so healthy
+# installs are untouched. Idempotent; never force-disconnects foreign
+# containers — if a non-compose workload holds the name, `network rm` simply
+# fails and the (now surfaced) compose error tells the operator.
+docker_repair_unmanaged_network() {
+    $DOCKER_CMD network inspect logosnode-net &>/dev/null || return 0
+
+    # Compose always tags networks it owns with com.docker.compose.network=<key>;
+    # our key is "logosnode-net". Anything else (empty/manual) is unmanaged.
+    local net_label
+    net_label="$($DOCKER_CMD network inspect logosnode-net \
+        --format '{{index .Labels "com.docker.compose.network"}}' 2>/dev/null)" || true
+    [[ "$net_label" == "logosnode-net" ]] && return 0
+
+    log_warn "Found a 'logosnode-net' network not managed by compose — repairing it"
+    log_dim "Detaching and recreating it so compose can adopt it cleanly"
+
+    # Detach our containers by bringing both stacks down. Data lives in named
+    # volumes, so this is safe; both are (re)started by the normal flow after.
+    local mon_compose="$LOGOS_NODE_DIR/docker-compose.monitoring.yml"
+    if [[ -f "$mon_compose" ]]; then
+        COMPOSE_IGNORE_ORPHANS=true $DOCKER_COMPOSE -f "$mon_compose" down &>/dev/null || true
+    fi
+    $DOCKER_COMPOSE -f "$(get_compose_path)" down &>/dev/null || true
+
+    $DOCKER_CMD network rm logosnode-net &>/dev/null || true
+}
+
 # Start the node
 docker_up() {
     local compose_path
     compose_path="$(get_compose_path)"
 
     docker_cleanup_legacy_network
+    docker_repair_unmanaged_network
     $DOCKER_COMPOSE -f "$compose_path" up -d
 }
 

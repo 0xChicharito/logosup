@@ -178,6 +178,12 @@ monitoring_build() {
 }
 
 monitoring_up() {
+    # Monitoring may come up before the node (during install, or `monitor start`
+    # on a stopped node). If a stale, non-compose `logosnode-net` lingers from an
+    # older install, repair it first so compose can adopt the shared network
+    # cleanly instead of aborting on a label mismatch. No-op on healthy installs.
+    docker_repair_unmanaged_network
+
     local compose_path
     compose_path="$(get_monitoring_compose_path)"
     COMPOSE_IGNORE_ORPHANS=true $DOCKER_COMPOSE -f "$compose_path" up -d
