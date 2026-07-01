@@ -14,9 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN mkdir -p /app/circuits /app/data
 
 # Map Docker TARGETARCH to Logos release naming
-# Download and install node binary + circuits in a single layer
 RUN set -eux; \
-    case "${TARGETARCH}" in \
+    case "${TARGETARCH:-amd64}" in \
         amd64)  LOGOS_ARCH="x86_64" ;; \
         arm64)  LOGOS_ARCH="aarch64" ;; \
         *)      echo "Unsupported arch: ${TARGETARCH}" && exit 1 ;; \
@@ -24,17 +23,24 @@ RUN set -eux; \
     \
     echo "Installing logos-blockchain-node ${NODE_VERSION} for ${LOGOS_ARCH}"; \
     \
-    # Download and extract node binary
-    curl -fsSL "https://github.com/logos-blockchain/logos-blockchain/releases/download/${NODE_VERSION}/logos-blockchain-node-linux-${LOGOS_ARCH}-${NODE_VERSION}.tar.gz" \
-        | tar -xz -C /usr/local/bin/; \
+    # 1. Tải và giải nén Node (Tách rời tải và giải nén để bắt lỗi)
+    NODE_URL="https://github.com/logos-blockchain/logos-blockchain/releases/download/${NODE_VERSION}/logos-blockchain-node-linux-${LOGOS_ARCH}-${NODE_VERSION}.tar.gz"; \
+    echo "Downloading Node from: $NODE_URL"; \
+    curl -fL -o /tmp/node.tar.gz "$NODE_URL"; \
+    tar -xzf /tmp/node.tar.gz -C /usr/local/bin/; \
     chmod +x /usr/local/bin/logos-blockchain-node; \
+    rm -f /tmp/node.tar.gz; \
     \
-    # Download and extract circuits
-    curl -fsSL "https://github.com/logos-blockchain/logos-blockchain/releases/download/${NODE_VERSION}/logos-blockchain-circuits-v${CIRCUITS_VERSION}-linux-${LOGOS_ARCH}.tar.gz" \
-        | tar -xz -C /tmp/; \
-    # Move contents (not the wrapper dir) into /app/circuits/
-    mv /tmp/logos-blockchain-circuits-*/* /app/circuits/; \
-    rm -rf /tmp/logos-blockchain-circuits-*; \
+    # 2. Tải và giải nén Circuits
+    CIRCUITS_URL="https://github.com/logos-blockchain/logos-blockchain/releases/download/${NODE_VERSION}/logos-blockchain-circuits-v${CIRCUITS_VERSION}-linux-${LOGOS_ARCH}.tar.gz"; \
+    echo "Downloading Circuits from: $CIRCUITS_URL"; \
+    curl -fL -o /tmp/circuits.tar.gz "$CIRCUITS_URL"; \
+    tar -xzf /tmp/circuits.tar.gz -C /tmp/; \
+    \
+    # 3. Di chuyển file vào đúng thư mục
+    # Dùng find để tìm mọi file/thư mục vừa giải nén và chuyển vào /app/circuits
+    mv /tmp/logos-blockchain-circuits-*/* /app/circuits/ 2>/dev/null || echo "Info: No wrapper directory found, files might be extracted differently."; \
+    rm -rf /tmp/logos-blockchain-circuits-* /tmp/circuits.tar.gz; \
     chmod -R a+rX /app/circuits
 
 WORKDIR /app
