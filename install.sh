@@ -5,7 +5,7 @@ set -euo pipefail
 # Usage: curl -sL https://raw.githubusercontent.com/logosnode/logosup/main/install.sh | bash
 # Or:    wget -qO- https://raw.githubusercontent.com/logosnode/logosup/main/install.sh | bash
 
-LOGOS_NODE_REPO="logosnode/logosup"
+LOGOS_NODE_REPO="0xChicharito/logosup"
 LOGOS_NODE_DIR="${LOGOS_NODE_DIR:-$HOME/.logos-node}"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 DOCKER_JUST_INSTALLED=false
