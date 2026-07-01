@@ -7,7 +7,7 @@ A CLI tool for installing, running, and managing a [Logos Blockchain](https://lo
 ## Quick start
 
 ```sh
-curl -sL https://raw.githubusercontent.com/logosnode/logosup/main/install.sh | bash
+curl -sL https://raw.githubusercontent.com/0xChicharito/logosup/main/install.sh | bash
 logosup install
 ```
 
